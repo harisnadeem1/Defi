@@ -1,0 +1,105 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 3.9%; /* Darker background */
+    --foreground: 0 0% 98%; /* Light text */
+    
+    --card: 240 8% 10%; /* Slightly lighter card */
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 217 91.2% 59.8%; /* Vibrant blue */
+    --primary-foreground: 210 40% 98%; /* White/Light text on primary */
+    
+    --secondary: 240 5% 15%; /* Darker secondary */
+    --secondary-foreground: 0 0% 98%;
+    
+    --muted: 220 10% 20%; /* Darker muted */
+    --muted-foreground: 220 10% 65%; /* Lighter muted text */
+    
+    --accent: 217 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 72.2% 50.6%; /* Brighter destructive red */
+    --destructive-foreground: 0 0% 98%;
+    
+    --border: 240 5% 25%; /* Slightly more visible border */
+    --input: 240 5% 18%; /* Darker input */
+    --ring: 217 91.2% 59.8%; /* Primary color for ring */
+    
+    --radius: 0.75rem; /* Slightly larger radius for modern feel */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  section {
+    @apply overflow-hidden; /* Prevents horizontal scroll from animations */
+  }
+}
+
+.risk-low {
+  @apply bg-gradient-to-br from-emerald-600/20 to-emerald-800/20 border-emerald-500/60;
+}
+
+.risk-medium {
+  @apply bg-gradient-to-br from-amber-600/20 to-amber-800/20 border-amber-500/60;
+}
+
+.risk-high {
+  @apply bg-gradient-to-br from-rose-600/20 to-rose-800/20 border-rose-500/60;
+}
+
+.strategy-card {
+  @apply relative overflow-hidden rounded-xl border p-6 shadow-lg transition-all duration-300 hover:shadow-primary/30 hover:-translate-y-1;
+  background-image: radial-gradient(circle at 100% 100%, rgba(59, 130, 246, 0.05) 0%, transparent 40%);
+}
+
+.strategy-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  @apply bg-gradient-to-r from-transparent via-primary to-transparent opacity-0 transition-opacity duration-300;
+}
+
+.strategy-card:hover::before {
+    @apply opacity-75;
+}
+
+
+.glass-effect {
+  @apply bg-secondary/50 backdrop-blur-lg border border-white/5;
+}
+
+.hero-gradient { /* Old hero gradient - can be removed if not used elsewhere */
+  background: linear-gradient(to right, rgba(59, 130, 246, 0.2), rgba(147, 51, 234, 0.2));
+}
+
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-primary to-purple-500;
+}
+
+.text-gradient-hover {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-primary to-purple-500 hover:bg-gradient-to-r hover:from-blue-500 hover:via-purple-500 hover:to-pink-500 transition-all duration-300;
+}
+
+/* Added for landing page specific elements if needed */
+.landing-feature-card {
+  @apply bg-card p-6 rounded-xl shadow-lg hover:shadow-primary/20 transition-shadow duration-300 border border-border;
+}

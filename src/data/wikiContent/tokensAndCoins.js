@@ -1,0 +1,88 @@
+import React from 'react';
+
+export const tokensAndCoinsTerms = [
+  {
+    id: "cryptocurrency",
+    term: "Cryptocurrency",
+    category: "Tokens & Coins",
+    definition: "A digital or virtual currency that is secured by cryptography, making it nearly impossible to counterfeit or double-spend. Many cryptocurrencies are decentralized networks based on blockchain technology.",
+    relatedTerms: ["Bitcoin", "Ethereum", "Altcoin"],
+  },
+  {
+    id: "bitcoin",
+    term: "Bitcoin (BTC)",
+    category: "Tokens & Coins",
+    definition: "The first and most well-known cryptocurrency, created by an unknown person or group of people under the name Satoshi Nakamoto. It operates on a decentralized peer-to-peer network.",
+    relatedTerms: ["Cryptocurrency", "Blockchain"],
+  },
+  {
+    id: "ethereum",
+    term: "Ethereum (ETH)",
+    category: "Tokens & Coins",
+    definition: "A decentralized, open-source blockchain with smart contract functionality. Ether (ETH) is the native cryptocurrency of the platform. It's a popular platform for building DApps and DeFi protocols.",
+    relatedTerms: ["Smart Contract", "DApp", "Gas Fees", "EVM"],
+  },
+  {
+    id: "altcoin",
+    term: "Altcoin",
+    category: "Tokens & Coins",
+    definition: "Any cryptocurrency other than Bitcoin. The term is a portmanteau of 'alternative coin'.",
+    relatedTerms: ["Cryptocurrency", "Ethereum", "Solana"],
+  },
+  {
+    id: "stablecoin",
+    term: "Stablecoin",
+    category: "Tokens & Coins",
+    definition: "A type of cryptocurrency whose value is pegged to another asset, such as a fiat currency (e.g., USD) or a commodity (e.g., gold), to maintain a stable price. Crucial for DeFi liquidity and trading.",
+    relatedTerms: ["USDT", "USDC", "DAI", "Peg"],
+  },
+  {
+    id: "usdt-tether",
+    term: "USDT (Tether)",
+    category: "Tokens & Coins",
+    definition: "One of the largest and most widely used stablecoins, pegged to the US dollar. Issued by Tether Limited.",
+    relatedTerms: ["Stablecoin", "Peg", "Fiat-Collateralized"],
+  },
+  {
+    id: "usdc-usd-coin",
+    term: "USDC (USD Coin)",
+    category: "Tokens & Coins",
+    definition: "A popular US dollar-pegged stablecoin issued by Circle and Coinbase. Known for its transparency and regulatory compliance efforts.",
+    relatedTerms: ["Stablecoin", "Peg", "Fiat-Collateralized"],
+  },
+  {
+    id: "dai-stablecoin",
+    term: "DAI",
+    category: "Tokens & Coins",
+    definition: "A decentralized, crypto-collateralized stablecoin soft-pegged to the US dollar, governed by MakerDAO. Its stability is maintained through a system of collateralized debt positions (CDPs).",
+    relatedTerms: ["Stablecoin", "Decentralized", "Crypto-Collateralized", "MakerDAO"],
+  },
+  {
+    id: "wrapped-tokens",
+    term: "Wrapped Tokens (e.g., wBTC, wETH)",
+    category: "Tokens & Coins",
+    definition: "Tokens that represent another cryptocurrency from a different blockchain, but conform to the token standard of the host blockchain. For example, Wrapped Bitcoin (wBTC) is an ERC-20 token on Ethereum that represents Bitcoin. Wrapping allows assets to be used in DeFi protocols on non-native chains.",
+    relatedTerms: ["Interoperability", "ERC-20", "Bitcoin", "Ethereum", "Blockchain Bridges"],
+  },
+  {
+    id: "nft",
+    term: "NFT (Non-Fungible Token)",
+    category: "Tokens & Coins",
+    definition: "A unique digital asset that represents ownership of a specific item, such as art, collectibles, or virtual land. Unlike cryptocurrencies, NFTs are not interchangeable (non-fungible).",
+    relatedTerms: ["Blockchain", "Digital Art", "Collectibles", "ERC-721"],
+  },
+  {
+    id: "governance-token",
+    term: "Governance Token",
+    category: "Tokens & Coins",
+    definition: "A type of cryptocurrency that grants holders voting rights and the ability to participate in the decision-making process (governance) of a decentralized protocol or DApp.",
+    relatedTerms: ["DAO", "Decentralization", "Voting", "Protocol Governance"],
+  },
+  {
+    id: "tokenomics",
+    term: "Tokenomics",
+    category: "Tokens & Coins",
+    definition: "The study of the economic characteristics of a cryptocurrency or token. This includes its supply, distribution, utility, demand drivers, and incentive mechanisms. Understanding tokenomics is crucial for assessing a project's long-term viability.",
+    relatedTerms: ["Supply and Demand", "Inflation/Deflation", "Utility Token", "Governance Token", "Vesting"],
+  },
+];
