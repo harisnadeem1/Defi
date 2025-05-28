@@ -221,6 +221,25 @@ useEffect(() => {
     toast({ variant: "destructive", title: "Error", description: error.message });
     return;
   }
+const newUser = data?.user;
+
+if (newUser) {
+  const { error: insertError } = await supabase.from("profiles").insert([
+    {
+      id: newUser.id,
+      email: newAdminEmail,
+      username: newAdminUsername,
+      role: "admin",
+      is_subscribed: false,
+    },
+  ]);
+
+  if (insertError) {
+    toast({ variant: "destructive", title: "Error", description: insertError.message });
+    return;
+  }
+}
+  
 
   toast({ title: "Success!", description: `Admin user ${newAdminUsername} created.` });
   setNewAdminEmail("");
