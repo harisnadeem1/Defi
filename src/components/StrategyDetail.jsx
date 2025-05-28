@@ -9,6 +9,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { getStrategyById } from "@/lib/data";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "../lib/supabaseClient";
 
 const riskIcons = {
   low: <Shield className="h-5 w-5 text-emerald-400" />,
@@ -30,19 +31,27 @@ const StrategyDetail = () => {
   const [currentUser, setCurrentUser] = useState(null); 
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
 
-  const updateUserSubscriptionStatus = useCallback(() => {
-    try {
-        const userString = localStorage.getItem("currentUser");
-        if (userString) {
-            const user = JSON.parse(userString);
-            setCurrentUser(user);
-        } else {
-            setCurrentUser(null); 
-        }
-    } catch (error) {
-        setCurrentUser(null); 
+const updateUserSubscriptionStatus = useCallback(async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) return setCurrentUser(null);
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .single();
+
+    if (profile) {
+      setCurrentUser({ ...session.user, ...profile });
+    } else {
+      setCurrentUser(null);
     }
-  }, []);
+  } catch (error) {
+    console.error("Failed to fetch user from Supabase:", error);
+    setCurrentUser(null);
+  }
+}, []);
 
   useEffect(() => {
     const fetchedStrategy = getStrategyById(id);

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { X, Zap, ShieldCheck, Star, CreditCard } from 'lucide-react';
+import { Zap, ShieldCheck, Star, CreditCard } from 'lucide-react';
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from 'react-router-dom';
 import { loadStripe } from '@stripe/stripe-js';
+import { supabase } from "@/lib/supabaseClient";
 
 const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess, stripePublishableKey, stripePriceId }) => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -14,8 +14,20 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess, stripePubli
   const navigate = useNavigate();
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("currentUser"));
-    setCurrentUser(user);
+    const fetchUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single();
+        setCurrentUser(profile);
+      } else {
+        setCurrentUser(null);
+      }
+    };
+    if (isOpen) fetchUser();
   }, [isOpen]);
 
   const handleSubscribe = async () => {
@@ -28,88 +40,67 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess, stripePubli
       return;
     }
 
-    if (!stripePublishableKey || stripePublishableKey === "YOUR_STRIPE_PUBLISHABLE_KEY" || !stripePriceId || stripePriceId === "YOUR_STRIPE_PRICE_ID") {
-        toast({
-            variant: "destructive",
-            title: "Stripe Not Configured",
-            description: "Stripe is not yet configured by the admin. Please check back later.",
-        });
-        return;
+    if (!stripePublishableKey || !stripePriceId || stripePublishableKey === "YOUR_STRIPE_PUBLISHABLE_KEY") {
+      toast({
+        variant: "destructive",
+        title: "Stripe Not Configured",
+        description: "Stripe is not yet configured by the admin.",
+      });
+      return;
     }
-    
+
     setIsLoading(true);
     try {
       const stripe = await loadStripe(stripePublishableKey);
-      if (!stripe) {
-        throw new Error("Stripe.js failed to load.");
-      }
+      if (!stripe) throw new Error("Stripe.js failed to load.");
 
-      const { error } = await stripe.redirectToCheckout({
+      await stripe.redirectToCheckout({
         lineItems: [{ price: stripePriceId, quantity: 1 }],
-        mode: 'payment', // Use 'payment' for one-time purchases
-        successUrl: `${window.location.origin}/strategies?subscription_success=true`, // Redirect back to strategies page
+        mode: 'payment',
+        successUrl: `${window.location.origin}/strategies?subscription_success=true`,
         cancelUrl: `${window.location.origin}/strategies?subscription_cancelled=true`,
-        customerEmail: currentUser.email, // Pre-fill email if available
-        clientReferenceId: currentUser.id.toString(), // Associate checkout with user ID
+        customerEmail: currentUser.email,
+        clientReferenceId: currentUser.id.toString(),
       });
-
-      if (error) {
-        console.error("Stripe Checkout error:", error);
-        toast({
-          variant: "destructive",
-          title: "Subscription Failed",
-          description: error.message || "An unexpected error occurred. Please try again.",
-        });
-        setIsLoading(false);
-      }
-      // If redirectToCheckout is successful, the user is redirected to Stripe.
-      // The success/cancel URLs will handle the post-payment logic.
     } catch (error) {
-      console.error("Subscription error:", error);
       toast({
         variant: "destructive",
         title: "Subscription Failed",
-        description: error.message || "Could not initiate subscription. Please try again.",
+        description: error.message || "Could not initiate subscription.",
       });
       setIsLoading(false);
     }
   };
-  
-  // This effect handles the redirect from Stripe
+
   useEffect(() => {
-    const queryParams = new URLSearchParams(window.location.search);
-    if (queryParams.get("subscription_success") === "true") {
-      const user = JSON.parse(localStorage.getItem("currentUser"));
-      if (user) {
-        const updatedUser = { ...user, isSubscribed: true };
-        localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+    const handleRedirectAfterPayment = async () => {
+      const queryParams = new URLSearchParams(window.location.search);
+      if (queryParams.get("subscription_success") === "true" && currentUser) {
+        await supabase
+          .from("profiles")
+          .update({ is_subscribed: true })
+          .eq("id", currentUser.id);
 
-        // Update user in 'users' array as well
-        const allUsers = JSON.parse(localStorage.getItem("users")) || [];
-        const userIndex = allUsers.findIndex(u => u.id === user.id);
-        if (userIndex !== -1) {
-          allUsers[userIndex] = updatedUser;
-          localStorage.setItem("users", JSON.stringify(allUsers));
-        }
-        window.dispatchEvent(new CustomEvent('userUpdated'));
+        if (onSubscriptionSuccess) onSubscriptionSuccess();
+
+        toast({
+          title: "Subscription Successful",
+          description: "Thank you for subscribing!",
+        });
+
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (queryParams.get("subscription_cancelled") === "true") {
+        toast({
+          title: "Subscription Cancelled",
+          description: "You cancelled the subscription process.",
+        });
+
+        window.history.replaceState({}, document.title, window.location.pathname);
       }
-      // Call onSubscriptionSuccess which is passed from parent (HomePage or StrategyDetail)
-      if(onSubscriptionSuccess) onSubscriptionSuccess(); 
-      
-      // Clean up query params
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-    } else if (queryParams.get("subscription_cancelled") === "true") {
-       toast({
-        title: "Subscription Cancelled",
-        description: "Your subscription process was cancelled. You can try again anytime.",
-      });
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, document.title, newUrl);
-    }
+    };
 
-  }, [onSubscriptionSuccess, toast]);
-
+    handleRedirectAfterPayment();
+  }, [currentUser, onSubscriptionSuccess, toast]);
 
   if (!isOpen) return null;
 
@@ -125,19 +116,19 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess, stripePubli
             For a one-time payment of <span className="font-bold text-primary">$100</span>, get lifetime access to every strategy on our platform.
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="my-6 px-2 space-y-3 text-sm">
           <div className="flex items-start gap-3">
-            <ShieldCheck className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-            <p><span className="font-semibold">Premium Content:</span> Access detailed guides, risk assessments, and expert insights for all strategies.</p>
+            <ShieldCheck className="h-5 w-5 text-green-500 mt-0.5" />
+            <p><strong>Premium Content:</strong> Full access to all expert DeFi strategies.</p>
           </div>
           <div className="flex items-start gap-3">
-            <Star className="h-5 w-5 text-yellow-500 mt-0.5 shrink-0" />
-            <p><span className="font-semibold">All Future Updates:</span> Your one-time payment includes access to all new strategies added in the future.</p>
+            <Star className="h-5 w-5 text-yellow-500 mt-0.5" />
+            <p><strong>Lifetime Updates:</strong> Future strategy updates included.</p>
           </div>
           <div className="flex items-start gap-3">
-            <CreditCard className="h-5 w-5 text-blue-500 mt-0.5 shrink-0" />
-            <p><span className="font-semibold">Secure Payment:</span> Processed securely through Stripe. We don't store your card details.</p>
+            <CreditCard className="h-5 w-5 text-blue-500 mt-0.5" />
+            <p><strong>Secure Payment:</strong> Powered by Stripe.</p>
           </div>
         </div>
 
@@ -145,10 +136,10 @@ const SubscriptionModal = ({ isOpen, onClose, onSubscriptionSuccess, stripePubli
           <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
             Maybe Later
           </Button>
-          <Button 
-            onClick={handleSubscribe} 
-            disabled={isLoading} 
-            className="w-full sm:w-auto bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 text-primary-foreground text-lg px-8 py-6"
+          <Button
+            onClick={handleSubscribe}
+            disabled={isLoading}
+            className="w-full sm:w-auto bg-gradient-to-r from-primary to-blue-600 text-white text-lg px-8 py-6"
           >
             {isLoading ? "Processing..." : "Subscribe Now ($100)"}
           </Button>

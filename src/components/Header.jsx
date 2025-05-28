@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Lightbulb, LogIn, UserPlus, UserCircle, LogOut, ShieldCheck, MessagesSquare, BookOpen, Home, Compass, BookMarked } from "lucide-react"; // Added BookMarked for Wiki
+import { Lightbulb, LogIn, UserPlus, UserCircle, LogOut, ShieldCheck, MessagesSquare, BookOpen, Home, Compass, BookMarked } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,61 +11,53 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { supabase } from "@/lib/supabaseClient"; // ✅ Import Supabase
 
 const Header = () => {
   const [currentUser, setCurrentUser] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  const updateUserState = useCallback(() => {
-    try {
-      const userString = localStorage.getItem("currentUser");
-      if (userString) {
-        const user = JSON.parse(userString);
-        setCurrentUser(user);
-      } else {
-        setCurrentUser(null);
-      }
-    } catch (error) {
+  const fetchUserProfile = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+      setCurrentUser(profile);
+    } else {
       setCurrentUser(null);
     }
   }, []);
 
   useEffect(() => {
-    updateUserState(); 
+  fetchUserProfile();
 
-    const handleStorageChange = (event) => {
-      if (event.key === "currentUser" || event.key === null) { 
-        updateUserState();
-      }
-    };
+  const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+      fetchUserProfile();
+    }
+  });
 
-    const handleUserUpdate = () => {
-      updateUserState();
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('userUpdated', handleUserUpdate); 
+  return () => {
+    listener.subscription?.unsubscribe();
+  };
+}, [fetchUserProfile]);
 
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('userUpdated', handleUserUpdate);
-    };
-  }, [updateUserState]);
-
-  const handleLogout = () => {
-    localStorage.removeItem("currentUser");
-    setCurrentUser(null); 
-    window.dispatchEvent(new CustomEvent('userUpdated')); 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
     navigate("/login");
   };
-  
+
   const navLinkClasses = (path) => {
     return location.pathname === path ? "text-primary font-semibold" : "";
   };
 
-  const isAdminOrWorker = currentUser && currentUser.role && (currentUser.role === 'admin' || currentUser.role === 'worker');
+  const isAdminOrWorker = currentUser?.role === 'admin' || currentUser?.role === 'worker';
 
   return (
     <header className="border-b sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -91,7 +83,7 @@ const Header = () => {
           transition={{ duration: 0.3, delay: 0.1 }}
           className="hidden md:flex items-center gap-1"
         >
-           <Button variant="ghost" asChild className={navLinkClasses("/")}>
+          <Button variant="ghost" asChild className={navLinkClasses("/")}>
             <Link to="/" className="gap-1">
               <Home className="h-4 w-4" /> Home
             </Link>
@@ -131,7 +123,9 @@ const Header = () => {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                     <AvatarFallback>{currentUser.username ? currentUser.username.charAt(0).toUpperCase() : (currentUser.email ? currentUser.email.charAt(0).toUpperCase() : 'U')}</AvatarFallback>
+                    <AvatarFallback>
+                      {currentUser.username ? currentUser.username.charAt(0).toUpperCase() : (currentUser.email ? currentUser.email.charAt(0).toUpperCase() : 'U')}
+                    </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
@@ -155,14 +149,12 @@ const Header = () => {
                   <DropdownMenuItem onClick={() => navigate("/learn-defi")} className="cursor-pointer">
                     <BookOpen className="mr-2 h-4 w-4" /> Learn DeFi
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate("/wiki")} className="cursor-pointer"> {/* Wiki for mobile */}
+                  <DropdownMenuItem onClick={() => navigate("/wiki")} className="cursor-pointer">
                     <BookMarked className="mr-2 h-4 w-4" /> DeFi Wiki
                   </DropdownMenuItem>
-                  {currentUser && ( 
-                    <DropdownMenuItem onClick={() => navigate("/chat")} className="cursor-pointer">
-                      <MessagesSquare className="mr-2 h-4 w-4" /> Community
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem onClick={() => navigate("/chat")} className="cursor-pointer">
+                    <MessagesSquare className="mr-2 h-4 w-4" /> Community
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                 </div>
                 {isAdminOrWorker && (

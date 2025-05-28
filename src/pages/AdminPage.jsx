@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,8 @@ import StrategyListItem from "@/components/admin/StrategyListItem";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/lib/supabaseClient"; // at top
+import { useEffect, useState } from "react";
 
 
 const initialStrategyFormData = {
@@ -51,32 +52,57 @@ const AdminPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const fetchAdminUsers = () => {
-    const allUsers = JSON.parse(localStorage.getItem("users")) || [];
-    const adminsAndWorkers = allUsers.filter(user => user.role === 'admin' || user.role === 'worker');
-    setAdminUsers(adminsAndWorkers);
-  };
+ const fetchAdminUsers = async () => {
+  const { data, error } = await supabase.from("profiles").select("id, email, username, role");
 
-  useEffect(() => {
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-    if (!currentUser || (currentUser.role !== 'admin' && currentUser.role !== 'worker')) {
+  if (error) {
+    toast({
+      variant: "destructive",
+      title: "Error Fetching Admins",
+      description: error.message,
+    });
+    return;
+  }
+
+  const adminsAndWorkers = data.filter(user => user.role === 'admin' || user.role === 'worker');
+  setAdminUsers(adminsAndWorkers);
+};
+
+useEffect(() => {
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const role = user?.user_metadata?.role;
+
+    if (!user || (role !== 'admin' && role !== 'worker')) {
       toast({ variant: "destructive", title: "Access Denied", description: "Please log in as an admin or worker." });
       navigate("/admin-login");
-      return;
-    }
-
-    const storedStrategies = JSON.parse(localStorage.getItem("strategies"));
-    if (storedStrategies && storedStrategies.length > 0) {
-      setStrategies(storedStrategies.map(s => ({...initialStrategyFormData, ...s}))); // Ensure all fields exist
     } else {
-      const initialFetchedStrategies = getInitialStrategies();
-      setStrategies(initialFetchedStrategies.map(s => ({...initialStrategyFormData, ...s})));
-      localStorage.setItem("strategies", JSON.stringify(initialFetchedStrategies));
+      setCheckingAuth(false);
     }
+  };
 
-    fetchAdminUsers();
+  checkAdmin();
+}, []);
 
-  }, [navigate, toast]);
+
+useEffect(() => {
+  const storedStrategies = JSON.parse(localStorage.getItem("strategies"));
+  if (storedStrategies && storedStrategies.length > 0) {
+    const hydrated = storedStrategies.map(s => ({ ...initialStrategyFormData, ...s }));
+    const sorted = hydrated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // ✅ sort by newest first
+    setStrategies(sorted);
+  } else {
+    const initialFetchedStrategies = getInitialStrategies();
+    const sortedInitial = initialFetchedStrategies.map(s => ({ ...initialStrategyFormData, ...s }));
+    setStrategies(sortedInitial);
+    localStorage.setItem("strategies", JSON.stringify(initialFetchedStrategies));
+  }
+}, []);
+
+  
+  useEffect(() => {
+  fetchAdminUsers();
+}, []);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -171,41 +197,37 @@ const AdminPage = () => {
     toast({ title: "Deleted!", description: "Strategy removed successfully." });
   };
 
-  const handleAddAdminUser = (e) => {
-    e.preventDefault();
-    if (!newAdminEmail || !newAdminPassword || !newAdminUsername) {
-      toast({ variant: "destructive", title: "Error", description: "Please fill in all fields for the new admin user." });
-      return;
+  const handleAddAdminUser = async (e) => {
+  e.preventDefault();
+
+  if (!newAdminEmail || !newAdminPassword || !newAdminUsername) {
+    toast({ variant: "destructive", title: "Error", description: "Please fill in all fields for the new admin user." });
+    return;
+  }
+
+  const { data, error } = await supabase.auth.signUp({
+    email: newAdminEmail,
+    password: newAdminPassword,
+    options: {
+      data: {
+        username: newAdminUsername,
+        role: "admin",
+        is_subscribed: false
+      }
     }
+  });
 
-    const usersString = localStorage.getItem("users");
-    let users = usersString ? JSON.parse(usersString) : [];
+  if (error) {
+    toast({ variant: "destructive", title: "Error", description: error.message });
+    return;
+  }
 
-    const existingUser = users.find(u => u.email === newAdminEmail);
-    if (existingUser) {
-      toast({ variant: "destructive", title: "Error", description: "User with this email already exists." });
-      return;
-    }
-
-    const newAdmin = {
-      email: newAdminEmail,
-      username: newAdminUsername,
-      password: newAdminPassword, 
-      role: "admin",
-      id: Date.now().toString(), 
-      createdAt: new Date().toISOString(),
-    };
-
-    users.push(newAdmin);
-    localStorage.setItem("users", JSON.stringify(users));
-    fetchAdminUsers(); 
-    
-    toast({ title: "Success!", description: `Admin user ${newAdminUsername} created.` });
-    setNewAdminEmail("");
-    setNewAdminUsername("");
-    setNewAdminPassword("");
-    setShowNewAdminPassword(false);
-  };
+  toast({ title: "Success!", description: `Admin user ${newAdminUsername} created.` });
+  setNewAdminEmail("");
+  setNewAdminUsername("");
+  setNewAdminPassword("");
+  setShowNewAdminPassword(false);
+};
 
 
   const riskIcons = {

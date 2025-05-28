@@ -2,10 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, MessagesSquare } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/lib/supabaseClient"; // ✅ import supabase
 
 const ChatPage = () => {
   const [messages, setMessages] = useState([]);
@@ -16,38 +17,46 @@ const ChatPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const user = JSON.parse(localStorage.getItem("currentUser"));
-    if (!user) {
-      toast({
-        variant: "destructive",
-        title: "Authentication Required",
-        description: "Please log in to access the community chat.",
-      });
-      navigate("/login");
-      return;
-    }
-    setCurrentUser(user);
+    const fetchUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Required",
+          description: "Please log in to access the community chat.",
+        });
+        navigate("/login");
+        return;
+      }
 
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
+
+      setCurrentUser(profile);
+    };
+
+    fetchUser();
+
+    // Temporary fallback until you store messages in Supabase
     const storedMessages = JSON.parse(localStorage.getItem("chatMessages")) || [];
     setMessages(storedMessages);
   }, [navigate, toast]);
 
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!newMessage.trim() || !currentUser) return;
 
     const messageData = {
       id: Date.now(),
       text: newMessage,
-      sender: currentUser.username || currentUser.email.split('@')[0],
+      sender: currentUser.username || currentUser.email?.split('@')[0],
       email: currentUser.email,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
@@ -57,7 +66,7 @@ const ChatPage = () => {
     localStorage.setItem("chatMessages", JSON.stringify(updatedMessages));
     setNewMessage("");
   };
-  
+
   const getAvatarColor = (email) => {
     let hash = 0;
     for (let i = 0; i < email.length; i++) {
@@ -66,7 +75,6 @@ const ChatPage = () => {
     const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
     return "#" + "00000".substring(0, 6 - c.length) + c;
   };
-
 
   return (
     <div className="container mx-auto px-4 py-8 h-[calc(100vh-160px)] flex flex-col">
@@ -97,7 +105,7 @@ const ChatPage = () => {
               }`}
             >
               {currentUser && msg.email !== currentUser.email && (
-                 <Avatar className="h-10 w-10 border-2" style={{ borderColor: getAvatarColor(msg.email) }}>
+                <Avatar className="h-10 w-10 border-2" style={{ borderColor: getAvatarColor(msg.email) }}>
                   <AvatarFallback style={{ backgroundColor: getAvatarColor(msg.email), color: '#fff' }}>
                     {msg.sender.charAt(0).toUpperCase()}
                   </AvatarFallback>
@@ -116,7 +124,7 @@ const ChatPage = () => {
               </div>
               {currentUser && msg.email === currentUser.email && (
                 <Avatar className="h-10 w-10 border-2" style={{ borderColor: getAvatarColor(msg.email) }}>
-                   <AvatarFallback style={{ backgroundColor: getAvatarColor(msg.email), color: '#fff' }}>
+                  <AvatarFallback style={{ backgroundColor: getAvatarColor(msg.email), color: '#fff' }}>
                     {msg.sender.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>

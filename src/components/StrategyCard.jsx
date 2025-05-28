@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 const riskIcons = {
   low: <Shield className="h-4 w-4 text-emerald-400" />,
@@ -43,9 +45,17 @@ const getChainColor = (chainName) => {
 const StrategyCard = ({ strategy, isSubscribed, onUnlock }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const [currentUser, setCurrentUser] = useState(null);
 
   const effectivelyUnlocked = isSubscribed || strategy.isSample;
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+    };
+    fetchUser();
+  }, []);
 
   const handleViewStrategy = () => {
     if (effectivelyUnlocked) {
@@ -58,10 +68,10 @@ const StrategyCard = ({ strategy, isSubscribed, onUnlock }) => {
           action: <Button onClick={() => navigate('/login')}>Login</Button>,
         });
       } else {
-         if (onUnlock) {
+        if (onUnlock) {
           onUnlock(strategy); 
         } else {
-           toast({
+          toast({
             title: "Subscription Required",
             description: "Unlock this strategy and get access to all strategies by subscribing.",
           });

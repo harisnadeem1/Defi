@@ -4,9 +4,17 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
 
 const RegisterPage = () => {
   const [email, setEmail] = useState("");
@@ -18,8 +26,9 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (password !== confirmPassword) {
       toast({
         variant: "destructive",
@@ -28,6 +37,7 @@ const RegisterPage = () => {
       });
       return;
     }
+
     if (password.length < 6) {
       toast({
         variant: "destructive",
@@ -37,39 +47,63 @@ const RegisterPage = () => {
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem("users")) || [];
-    const existingUser = users.find(user => user.email === email || user.username === username);
-
-    if (existingUser) {
+    if (/[^a-zA-Z0-9_]/.test(username)) {
       toast({
         variant: "destructive",
-        title: "Registration Failed",
-        description: "User with this email or username already exists.",
+        title: "Invalid Username",
+        description: "Only letters, numbers, and underscores are allowed.",
       });
       return;
     }
-    
-    let userRole = "user"; // Default role
-    
-    // Assign admin role to specific credentials
-    if (email === "admin@example.com" && username === "adminuser" && password === "SuperSecureAdminP@ssw0rd!") {
-      userRole = "admin";
-    } else if (email === "test@test.com") { 
-      // This ensures test@test.com gets admin role regardless of username/password during registration
-      userRole = "admin";
-    } else if (email === "superadmin@example.com" && username === "superadmin" && password === "UltraSecureP@ssw0rd123!") {
-      userRole = "admin";
+
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          username,
+          role: "user",
+          is_subscribed: false,
+        },
+      },
+    });
+
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: error.message,
+      });
+      return;
     }
 
+    // ✅ Insert into 'profiles' table
+    if (data?.user) {
+      const { error: profileError } = await supabase.from("profiles").insert([
+        {
+          id: data.user.id,
+          email: email,
+          username: username,
+          role: "user",
+          is_subscribed: false,
+        },
+      ]);
 
-    const newUser = { id: Date.now(), email, username, password, role: userRole };
-    users.push(newUser);
-    localStorage.setItem("users", JSON.stringify(users));
+      if (profileError) {
+        toast({
+          variant: "destructive",
+          title: "Profile Creation Failed",
+          description: profileError.message,
+        });
+        return;
+      }
+    }
 
     toast({
       title: "Registration Successful!",
-      description: "You can now log in with your new account.",
+      description: "Please check your email to confirm your account.",
     });
+
     navigate("/login");
   };
 
@@ -142,7 +176,7 @@ const RegisterPage = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
-                 <Button
+                <Button
                   type="button"
                   variant="ghost"
                   size="icon"

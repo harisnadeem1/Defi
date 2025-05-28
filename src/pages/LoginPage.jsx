@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { LogIn, Eye, EyeOff, Shield } from "lucide-react";
+import { supabase } from "../lib/supabaseClient";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -15,33 +16,42 @@ const LoginPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const usersString = localStorage.getItem("users");
-    const users = usersString ? JSON.parse(usersString) : [];
-    
-    const user = users.find(u => u.email === email && u.password === password);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (user) {
-      localStorage.setItem("currentUser", JSON.stringify(user));
-      window.dispatchEvent(new CustomEvent('userUpdated')); // Dispatch event
-      toast({
-        title: "Login Successful!",
-        description: `Welcome back, ${user.username || user.email}!`,
-      });
-      if (user.role === 'admin' || user.role === 'worker') {
-        navigate("/admin"); // Redirect admins/workers to admin panel
-      } else {
-        navigate("/"); // Redirect regular users to homepage
-      }
-    } else {
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: "Invalid email or password. Please try again.",
-      });
-    }
-  };
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    toast({
+      variant: "destructive",
+      title: "Login Failed",
+      description: error.message,
+    });
+    return;
+  }
+
+  // Get the user metadata
+  const { user } = data;
+  const username = user.user_metadata?.username || user.email;
+  const role = user.user_metadata?.role || "user";
+
+  toast({
+    title: "Login Successful!",
+    description: `Welcome back, ${username}!`,
+  });
+
+  window.dispatchEvent(new CustomEvent("userUpdated")); // trigger updates
+
+  // Navigate based on role
+  if (role === "admin" || role === "worker") {
+    navigate("/admin");
+  } else {
+    navigate("/");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background via-blue-900/10 to-purple-900/20">
