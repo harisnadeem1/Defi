@@ -161,25 +161,41 @@
 
 
 // src/pages/ChatPage.jsx
-
 import { useEffect, useRef, useState } from "react";
 import { mmGet, mmPost } from "../api/mattermostClient";
 import { supabase } from "@/lib/supabaseClient";
-
-
-
+import Picker from "@emoji-mart/react";
+import data from "@emoji-mart/data";
+import emoji from "emoji-dictionary";
 
 const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
-
-
-
 
 function ChatPage() {
   const [posts, setPosts] = useState([]);
   const [message, setMessage] = useState("");
   const [mmToken, setMmToken] = useState(null);
   const [mmUserId, setMmUserId] = useState(null);
+  const [showPickerFor, setShowPickerFor] = useState(null);
+  const [replyToPostId, setReplyToPostId] = useState(null);
   const messagesEndRef = useRef(null);
+
+  const handleReact = async (postId, emoji = "thumbsup") => {
+    if (!mmUserId || !mmToken) return;
+    try {
+      await mmPost(
+        "/reactions",
+        {
+          post_id: postId,
+          user_id: mmUserId,
+          emoji_name: emoji,
+        },
+        mmToken
+      );
+      fetchMessages();
+    } catch (error) {
+      console.error("Failed to react to message:", error.message);
+    }
+  };
 
   useEffect(() => {
     const fetchMattermostCredentials = async () => {
@@ -207,7 +223,7 @@ function ChatPage() {
   useEffect(() => {
     if (mmToken) {
       fetchMessages();
-      const interval = setInterval(fetchMessages, 5000); // auto-refresh messages
+      const interval = setInterval(fetchMessages, 5000);
       return () => clearInterval(interval);
     }
   }, [mmToken]);
@@ -215,19 +231,50 @@ function ChatPage() {
   const fetchMessages = async () => {
     try {
       const data = await mmGet(`/channels/${CHANNEL_ID}/posts`, mmToken);
-      const messages = Object.values(data.posts).sort((a, b) => a.create_at - b.create_at);
+      const messages = Object.values(data.posts);
+      const rootPosts = messages.filter((msg) => !msg.root_id);
+      const replies = messages.filter((msg) => msg.root_id);
       const userIds = [...new Set(messages.map((msg) => msg.user_id))];
       const users = await Promise.all(userIds.map((id) => mmGet(`/users/${id}`, mmToken)));
       const userMap = Object.fromEntries(users.map((user) => [user.id, user.username]));
 
-      const messagesWithUsernames = messages.map((msg) => ({
-        ...msg,
-        username: userMap[msg.user_id] || "Unknown",
-        isOwnMessage: msg.user_id === mmUserId,
-      }));
+      const messagesWithReactions = await Promise.all(
+        rootPosts.map(async (msg) => {
+          let reactions = [];
+          try {
+            reactions = await mmGet(`/posts/${msg.id}/reactions`, mmToken);
+          } catch (err) {
+            reactions = [];
+          }
 
-      setPosts(messagesWithUsernames);
-      scrollToBottom();
+          const groupedReactions = {};
+          (reactions || []).forEach((reaction) => {
+            if (!groupedReactions[reaction.emoji_name]) {
+              groupedReactions[reaction.emoji_name] = 1;
+            } else {
+              groupedReactions[reaction.emoji_name]++;
+            }
+          });
+
+          const msgReplies = replies
+            .filter((reply) => reply.root_id === msg.id)
+            .map((reply) => ({
+              ...reply,
+              username: userMap[reply.user_id] || "Unknown",
+              isOwnMessage: reply.user_id === mmUserId,
+            }));
+
+          return {
+            ...msg,
+            username: userMap[msg.user_id] || "Unknown",
+            isOwnMessage: msg.user_id === mmUserId,
+            reactions: groupedReactions,
+            replies: msgReplies,
+          };
+        })
+      );
+
+      setPosts(messagesWithReactions.sort((a, b) => a.create_at - b.create_at));
     } catch (err) {
       console.error("Error fetching messages:", err);
     }
@@ -237,11 +284,17 @@ function ChatPage() {
     if (!message.trim() || !mmToken) return;
 
     try {
-      await mmPost("/posts", {
-        channel_id: CHANNEL_ID,
-        message,
-      }, mmToken);
+      await mmPost(
+        "/posts",
+        {
+          channel_id: CHANNEL_ID,
+          message,
+          root_id: replyToPostId || null,
+        },
+        mmToken
+      );
       setMessage("");
+      setReplyToPostId(null);
       fetchMessages();
     } catch (err) {
       console.error("Failed to send message:", err);
@@ -258,18 +311,44 @@ function ChatPage() {
     <div className="max-w-3xl mx-auto py-10 px-4 h-screen bg-[#1e1f22] text-white flex flex-col">
       <h1 className="text-2xl font-bold mb-4 text-center text-gray-300">Community Chat</h1>
 
-      <div className="flex-1 border border-[#2c2f33] rounded p-4 overflow-y-auto bg-[#2b2d31] space-y-3">
+      <div className="flex-1 border border-[#2c2f33] rounded p-4 overflow-y-auto bg-[#2b2d31] space-y-4">
         {posts.map((post) => (
-          <div
-            key={post.id}
-            className={`px-4 py-2 rounded shadow ${
-              post.isOwnMessage ? "bg-blue-700 text-right" : "bg-[#313338]"
-            }`}
-          >
-            <div className="text-sm font-semibold text-[#f2f3f5]">
-              {post.username}
-            </div>
+          <div key={post.id} className={`px-4 py-2 rounded shadow ${post.isOwnMessage ? "bg-blue-700 text-right" : "bg-[#313338]"}`}>
+            <div className="text-sm font-semibold text-[#f2f3f5]">{post.username}</div>
             <div className="text-sm text-[#dbdee1]">{post.message}</div>
+
+            <div className="mt-1 flex gap-2 flex-wrap">
+              {Object.entries(post.reactions || {}).map(([emojiName, count]) => {
+                const emojiChar = emoji.getUnicode(emojiName);
+                if (!emojiChar) return null;
+                return (
+                  <span key={emojiName} className="inline-block text-sm px-2 py-1 bg-[#444] rounded-full mr-2">
+                    {emojiChar} {count}
+                  </span>
+                );
+              })}
+            </div>
+
+            <div className="text-xs mt-1 flex justify-end gap-4 text-gray-400">
+              <button onClick={() => setReplyToPostId(post.id)} className="hover:underline">Reply</button>
+              <button onClick={() => setShowPickerFor((prev) => (prev === post.id ? null : post.id))} className="hover:underline">React</button>
+            </div>
+
+            {showPickerFor === post.id && (
+              <div className="mt-2">
+                <Picker data={data} onEmojiSelect={(emoji) => {
+                  handleReact(post.id, emoji.id);
+                  setShowPickerFor(null);
+                }} theme="dark" />
+              </div>
+            )}
+
+            {post.replies?.map((reply) => (
+              <div key={reply.id} className="ml-6 mt-3 p-2 rounded bg-[#3a3b3e]">
+                <div className="text-xs font-semibold text-[#f2f3f5]">↳ {reply.username}</div>
+                <div className="text-sm text-[#dbdee1]">{reply.message}</div>
+              </div>
+            ))}
           </div>
         ))}
         <div ref={messagesEndRef}></div>
@@ -280,7 +359,7 @@ function ChatPage() {
           className="flex-1 bg-[#40444b] text-white rounded px-4 py-2 focus:outline-none"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Type your message..."
+          placeholder={replyToPostId ? "Replying..." : "Type your message..."}
         />
         <button
           onClick={handleSend}
@@ -294,4 +373,3 @@ function ChatPage() {
 }
 
 export default ChatPage;
-
