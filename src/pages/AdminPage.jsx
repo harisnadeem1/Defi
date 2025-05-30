@@ -15,11 +15,15 @@ import { supabase } from "@/lib/supabaseClient"; // at top
 import { useEffect, useState } from "react";
 
 
-const MATTERMOST_BASE_URL = "http://45.61.137.107:8065/api/v4";
-const MATTERMOST_ADMIN_TOKEN = "hfw6yztrtpnndcj78uzyzzgtdw"; // ⚠️ Keep secure in production
-const DEFAULT_CHANNEL_ID = "hewmgh3e9bgp9nrjanmhaqw1ya"; // Replace with your actual channel ID
-const TEAM_ID = '1k66m78rbfdw8eigi8c49htbwr';
-const CHANNEL_ID = 'hewmgh3e9bgp9nrjanmhaqw1ya';
+
+
+
+
+const MATTERMOST_BASE_URL = import.meta.env.VITE_MATTERMOST_BASE_URL;
+const MATTERMOST_ADMIN_TOKEN = import.meta.env.VITE_MATTERMOST_ADMIN_TOKEN;
+const TEAM_ID = import.meta.env.VITE_MATTERMOST_TEAM_ID;
+const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
+
 
 
 

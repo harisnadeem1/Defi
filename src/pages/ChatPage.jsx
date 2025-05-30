@@ -166,7 +166,13 @@ import { useEffect, useRef, useState } from "react";
 import { mmGet, mmPost } from "../api/mattermostClient";
 import { supabase } from "@/lib/supabaseClient";
 
-const CHANNEL_ID = "hewmgh3e9bgp9nrjanmhaqw1ya"; // General channel ID
+
+
+
+const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
+
+
+
 
 function ChatPage() {
   const [posts, setPosts] = useState([]);

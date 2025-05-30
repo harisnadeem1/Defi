@@ -4,10 +4,16 @@ import fetch from 'node-fetch';
 
 const router = express.Router();
 
-const MATTERMOST_URL = 'http://45.61.137.107:8065';
-const ADMIN_TOKEN = 'hfw6yztrtpnndcj78uzyzzgtdw'; // Replace with your real token
-const TEAM_ID = '1k66m78rbfdw8eigi8c49htbwr';
-const CHANNEL_ID = 'hewmgh3e9bgp9nrjanmhaqw1ya';
+
+
+
+
+const MATTERMOST_BASE_URL = import.meta.env.VITE_MATTERMOST_BASE_URL;
+const MATTERMOST_ADMIN_TOKEN = import.meta.env.VITE_MATTERMOST_ADMIN_TOKEN;
+const TEAM_ID = import.meta.env.VITE_MATTERMOST_TEAM_ID;
+const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
+
+
 
 router.post('/register-mattermost', async (req, res) => {
   const { email, username } = req.body;
@@ -18,7 +24,7 @@ const password = generatePassword();
 
   try {
     // 1. Create user
-    const userRes = await fetch(`${MATTERMOST_URL}/api/v4/users`, {
+    const userRes = await fetch(`${MATTERMOST_URL}/users`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -38,7 +44,7 @@ const password = generatePassword();
     console.log(`✅ User created: ${username} (${userId})`);
 
     // 2. Add to team
-    const teamRes = await fetch(`${MATTERMOST_URL}/api/v4/teams/${TEAM_ID}/members`, {
+    const teamRes = await fetch(`${MATTERMOST_URL}/teams/${TEAM_ID}/members`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -56,7 +62,7 @@ const password = generatePassword();
     console.log(`✅ User added to team: ${TEAM_ID}`);
 
     // 3. Add to channel
-    const channelRes = await fetch(`${MATTERMOST_URL}/api/v4/channels/${CHANNEL_ID}/members`, {
+    const channelRes = await fetch(`${MATTERMOST_URL}/channels/${CHANNEL_ID}/members`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

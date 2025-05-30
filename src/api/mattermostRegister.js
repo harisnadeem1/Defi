@@ -1,15 +1,21 @@
 export async function registerMattermostUser({ email, username, password }) {
 
-  const baseUrl = "http://45.61.137.107:8065/api/v4";
-  const teamId = "1k66m78rbfdw8eigi8c49htbwr"; // replace with your team ID
-  const channelId = "hewmgh3e9bgp9nrjanmhaqw1ya"; // replace with your channel ID
+ 
+
+
+
+  const MATTERMOST_BASE_URL = import.meta.env.VITE_MATTERMOST_BASE_URL;
+const MATTERMOST_ADMIN_TOKEN = import.meta.env.VITE_MATTERMOST_ADMIN_TOKEN;
+const TEAM_ID = import.meta.env.VITE_MATTERMOST_TEAM_ID;
+const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
+
 
   // 1. Create Mattermost User
-  const userRes = await fetch(`${baseUrl}/users`, {
+  const userRes = await fetch(`${MATTERMOST_BASE_URL}/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer hfw6yztrtpnndcj78uzyzzgtdw", // REPLACE THIS
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`, // REPLACE THIS
     },
     body: JSON.stringify({
       email,
@@ -22,14 +28,14 @@ export async function registerMattermostUser({ email, username, password }) {
   if (!userRes.ok) throw new Error(user.message || "Failed to create user");
 
   // 2. Add to Team
-  const teamRes = await fetch(`${baseUrl}/teams/${teamId}/members`, {
+  const teamRes = await fetch(`${MATTERMOST_BASE_URL}/teams/${TEAM_ID}/members`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer hfw6yztrtpnndcj78uzyzzgtdw",
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
     },
     body: JSON.stringify({
-      team_id: teamId,
+      team_id: TEAM_ID,
       user_id: user.id,
     }),
   });
@@ -40,14 +46,14 @@ export async function registerMattermostUser({ email, username, password }) {
   }
 
   // 3. Add to Channel
-  const channelRes = await fetch(`${baseUrl}/channels/${channelId}/members`, {
+  const channelRes = await fetch(`${MATTERMOST_BASE_URL}/channels/${CHANNEL_ID}/members`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: "Bearer hfw6yztrtpnndcj78uzyzzgtdw",
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
     },
     body: JSON.stringify({
-      channel_id: channelId,
+      channel_id: CHANNEL_ID,
       user_id: user.id,
     }),
   });
@@ -58,7 +64,7 @@ export async function registerMattermostUser({ email, username, password }) {
   }
 
   // 4. Login to get token
-  const loginRes = await fetch(`${baseUrl}/users/login`, {
+  const loginRes = await fetch(`${MATTERMOST_BASE_URL}/users/login`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -83,11 +89,11 @@ const cookie = loginRes.headers.get("set-cookie");
 
 
 
- const patRes = await fetch(`${baseUrl}/users/${user.id}/tokens`, {
+ const patRes = await fetch(`${MATTERMOST_BASE_URL}/users/${user.id}/tokens`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer hfw6yztrtpnndcj78uzyzzgtdw`,
+        Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
       },
       body: JSON.stringify({
         description: `Token for ${user.username}`,

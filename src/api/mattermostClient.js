@@ -1,4 +1,8 @@
-const BASE_URL = "http://45.61.137.107:8065/api/v4";
+
+
+
+const MATTERMOST_BASE_URL = import.meta.env.VITE_MATTERMOST_BASE_URL;
+
 
 /**
  * Make a GET request to Mattermost API using user's token
@@ -6,7 +10,7 @@ const BASE_URL = "http://45.61.137.107:8065/api/v4";
  * @param {string} token - Mattermost user token
  */
 export async function mmGet(endpoint, token) {
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
+  const res = await fetch(`${MATTERMOST_BASE_URL}${endpoint}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -28,7 +32,7 @@ export async function mmGet(endpoint, token) {
  * @param {string} token - Mattermost user token
  */
 export async function mmPost(endpoint, body, token) {
-  const res = await fetch(`${BASE_URL}${endpoint}`, {
+  const res = await fetch(`${MATTERMOST_BASE_URL}${endpoint}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
