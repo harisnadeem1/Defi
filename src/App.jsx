@@ -15,12 +15,15 @@ import ChatPage from "@/pages/ChatPage";
 import DeFiFundamentalsPage from "@/pages/DeFiFundamentalsPage";
 import DeFiWikiPage from "@/pages/DeFiWikiPage"; // New Wiki Page
 import ProtectedRoute from "@/components/ProtectedRoute";
+import CrateButton from "./components/CrateButton";
+
 
 function App() {
   return (
     <Router>
       <div className="min-h-screen flex flex-col bg-background text-foreground">
         <Header />
+
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<LandingPage />} />
@@ -43,6 +46,7 @@ function App() {
 
           </Routes>
         </main>
+
         <Footer />
         <Toaster />
       </div>

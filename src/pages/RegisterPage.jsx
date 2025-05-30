@@ -15,6 +15,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
+import { registerMattermostUser } from "../api/mattermostRegister";
 
 const RegisterPage = () => {
   const [email, setEmail] = useState("");
@@ -98,6 +99,25 @@ const RegisterPage = () => {
         return;
       }
     }
+    const mmData = await registerMattermostUser({ email, username,password });
+
+// ✅ Update Supabase profile with Mattermost user info
+const { error: updateError } = await supabase
+  .from("profiles")
+  .update({
+    mattermost_user_id: mmData.mattermost_user_id,
+    mattermost_token: mmData.mattermost_token,
+  })
+  .eq("id", data.user.id); // match by Supabase user ID
+
+if (updateError) {
+  toast({
+    variant: "destructive",
+    title: "Profile Update Failed",
+    description: updateError.message,
+  });
+  return;
+}
 
     toast({
       title: "Registration Successful!",

@@ -15,6 +15,14 @@ import { supabase } from "@/lib/supabaseClient"; // at top
 import { useEffect, useState } from "react";
 
 
+const MATTERMOST_BASE_URL = "http://45.61.137.107:8065/api/v4";
+const MATTERMOST_ADMIN_TOKEN = "hfw6yztrtpnndcj78uzyzzgtdw"; // ⚠️ Keep secure in production
+const DEFAULT_CHANNEL_ID = "hewmgh3e9bgp9nrjanmhaqw1ya"; // Replace with your actual channel ID
+const TEAM_ID = '1k66m78rbfdw8eigi8c49htbwr';
+const CHANNEL_ID = 'hewmgh3e9bgp9nrjanmhaqw1ya';
+
+
+
 const initialStrategyFormData = {
   title: "",
   description: "",
@@ -201,10 +209,15 @@ useEffect(() => {
   e.preventDefault();
 
   if (!newAdminEmail || !newAdminPassword || !newAdminUsername) {
-    toast({ variant: "destructive", title: "Error", description: "Please fill in all fields for the new admin user." });
+    toast({
+      variant: "destructive",
+      title: "Error",
+      description: "Please fill in all fields for the new admin user.",
+    });
     return;
   }
 
+  // 1. Sign up the user in Supabase Auth
   const { data, error } = await supabase.auth.signUp({
     email: newAdminEmail,
     password: newAdminPassword,
@@ -212,18 +225,106 @@ useEffect(() => {
       data: {
         username: newAdminUsername,
         role: "admin",
-        is_subscribed: false
-      }
-    }
+        is_subscribed: false,
+      },
+    },
   });
 
   if (error) {
-    toast({ variant: "destructive", title: "Error", description: error.message });
+    toast({ variant: "destructive", title: "Supabase Error", description: error.message });
     return;
   }
-const newUser = data?.user;
 
-if (newUser) {
+  const newUser = data?.user;
+  if (!newUser) return;
+
+  // 2. Register user on Mattermost
+  const mmRegisterRes = await fetch(`${MATTERMOST_BASE_URL}/users`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
+    },
+    body: JSON.stringify({
+      email: newAdminEmail,
+      username: newAdminUsername,
+      password: newAdminPassword,
+    }),
+  });
+
+  const mmUser = await mmRegisterRes.json();
+
+  if (!mmRegisterRes.ok) {
+    toast({
+      variant: "destructive",
+      title: "Mattermost Error",
+      description: mmUser.message || "Failed to create Mattermost user",
+    });
+    return;
+  }
+
+  // 3. Add to Mattermost Team
+  const teamRes = await fetch(`${MATTERMOST_BASE_URL}/teams/${TEAM_ID}/members`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
+    },
+    body: JSON.stringify({ team_id: TEAM_ID, user_id: mmUser.id }),
+  });
+
+  if (!teamRes.ok) {
+    const errData = await teamRes.json();
+    toast({
+      variant: "destructive",
+      title: "Team Join Error",
+      description: errData.message || "Failed to join Mattermost team",
+    });
+    return;
+  }
+
+  // 4. Add to Mattermost Channel
+  const channelRes = await fetch(`${MATTERMOST_BASE_URL}/channels/${CHANNEL_ID}/members`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
+    },
+    body: JSON.stringify({ user_id: mmUser.id }),
+  });
+
+  if (!channelRes.ok) {
+    const errData = await channelRes.json();
+    toast({
+      variant: "destructive",
+      title: "Channel Join Error",
+      description: errData.message || "Failed to join Mattermost channel",
+    });
+    return;
+  }
+
+  // 5. Create Personal Access Token
+  const tokenRes = await fetch(`${MATTERMOST_BASE_URL}/users/${mmUser.id}/tokens`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
+    },
+    body: JSON.stringify({ description: "Admin PAT" }),
+  });
+
+  const tokenData = await tokenRes.json();
+
+  if (!tokenRes.ok) {
+    toast({
+      variant: "destructive",
+      title: "Token Creation Error",
+      description: tokenData.message || "Failed to create personal token",
+    });
+    return;
+  }
+
+  // 6. Store everything in Supabase `profiles`
   const { error: insertError } = await supabase.from("profiles").insert([
     {
       id: newUser.id,
@@ -231,22 +332,33 @@ if (newUser) {
       username: newAdminUsername,
       role: "admin",
       is_subscribed: false,
+      mattermost_user_id: mmUser.id,
+      mattermost_token: tokenData.token,
     },
   ]);
 
   if (insertError) {
-    toast({ variant: "destructive", title: "Error", description: insertError.message });
+    toast({
+      variant: "destructive",
+      title: "Supabase Insert Error",
+      description: insertError.message,
+    });
     return;
   }
-}
-  
 
-  toast({ title: "Success!", description: `Admin user ${newAdminUsername} created.` });
+  toast({
+    title: "Success!",
+    description: `Admin user ${newAdminUsername} created successfully and linked to Mattermost.`,
+  });
+
   setNewAdminEmail("");
   setNewAdminUsername("");
   setNewAdminPassword("");
   setShowNewAdminPassword(false);
+
+  fetchAdminUsers();
 };
+
 
 
   const riskIcons = {

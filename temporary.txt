@@ -1,0 +1,9 @@
+server:1377938003862884362
+channel:1377938003862884365
+
+
+
+
+Token Description: connect to defi
+Token ID: 1kcnhxbn93f5fkcg51te64ph9e
+Access Token: hfw6yztrtpnndcj78uzyzzgtdw
