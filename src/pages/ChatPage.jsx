@@ -167,6 +167,7 @@ import { supabase } from "@/lib/supabaseClient";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import emoji from "emoji-dictionary";
+import { MessageCircle, SmilePlus } from "lucide-react"; 
 
 const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
 
@@ -309,67 +310,114 @@ function ChatPage() {
  
 
   return (
-    <div className="max-w-3xl mx-auto py-10 px-4 h-screen bg-[#1e1f22] text-white flex flex-col">
-      <h1 className="text-2xl font-bold mb-4 text-center text-gray-300">Community Chat</h1>
+   <div className="max-w-3xl mx-auto h-screen flex flex-col bg-[#1e1f22] text-white font-sans">
+  <header className="py-6 px-4 border-b border-[#2c2f33] bg-[#2b2d31]/80 backdrop-blur-md shadow-md">
+    <h1 className="text-2xl font-bold text-center text-gray-200 tracking-wide">💬 Community Chat</h1>
+  </header>
 
-      <div className="flex-1 border border-[#2c2f33] rounded p-4 overflow-y-auto bg-[#2b2d31] space-y-4">
-        {posts.map((post) => (
-          <div key={post.id} className={`px-4 py-2 rounded shadow ${post.isOwnMessage ? "bg-blue-700 text-right" : "bg-[#313338]"}`}>
-            <div className="text-sm font-semibold text-[#f2f3f5]">{post.username}</div>
-            <div className="text-sm text-[#dbdee1]">{post.message}</div>
+  <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 bg-[#2b2d31]">
+    {posts.map((post) => (
+      <div
+        key={post.id}
+        className={`relative p-4 rounded-lg backdrop-blur-md shadow-inner ${
+          post.isOwnMessage
+            ? "bg-blue-600/60 ml-auto max-w-md"
+            : "bg-[#313338]/60 max-w-md"
+        }`}
+      >
+        {/* Avatar and Username */}
+        <div className="flex items-center gap-2 mb-1">
+          <img
+            src={`https://ui-avatars.com/api/?name=${post.username}`}
+            alt="avatar"
+            className="w-7 h-7 rounded-full"
+          />
+          <span className="text-sm font-semibold text-gray-100">{post.username}</span>
+          <span className="text-xs text-gray-400 ml-auto">
+            {new Date(post.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
 
-            <div className="mt-1 flex gap-2 flex-wrap">
-              {Object.entries(post.reactions || {}).map(([emojiName, count]) => {
-                const emojiChar = emoji.getUnicode(emojiName);
-                if (!emojiChar) return null;
-                return (
-                  <span key={emojiName} className="inline-block text-sm px-2 py-1 bg-[#444] rounded-full mr-2">
-                    {emojiChar} {count}
-                  </span>
-                );
-              })}
-            </div>
+        {/* Message Content */}
+        <p className="text-sm text-gray-200 leading-snug">{post.message}</p>
 
-            <div className="text-xs mt-1 flex justify-end gap-4 text-gray-400">
-              <button onClick={() => setReplyToPostId(post.id)} className="hover:underline">Reply</button>
-              <button onClick={() => setShowPickerFor((prev) => (prev === post.id ? null : post.id))} className="hover:underline">React</button>
-            </div>
+        {/* Reactions */}
+        <div className="mt-2 flex gap-2 flex-wrap">
+          {Object.entries(post.reactions || {}).map(([emojiName, count]) => {
+            const emojiChar = emoji.getUnicode(emojiName);
+            if (!emojiChar) return null;
+            return (
+              <span
+                key={emojiName}
+                className="text-sm px-2 py-1 bg-[#444] rounded-full hover:bg-[#555] cursor-pointer"
+              >
+                {emojiChar} {count}
+              </span>
+            );
+          })}
+        </div>
 
-            {showPickerFor === post.id && (
-              <div className="mt-2">
-                <Picker data={data} onEmojiSelect={(emoji) => {
-                  handleReact(post.id, emoji.id);
-                  setShowPickerFor(null);
-                }} theme="dark" />
-              </div>
-            )}
+        {/* Actions - Icons */}
+        <div className="text-xs  flex justify-end gap-3 text-gray-400">
+          <button
+            onClick={() => setReplyToPostId(post.id)}
+            className="hover:text-gray-200"
+            title="Reply"
+          >
+            <MessageCircle size={16} />
+          </button>
+          <button
+            onClick={() => setShowPickerFor((prev) => (prev === post.id ? null : post.id))}
+            className="hover:text-gray-200"
+            title="React"
+          >
+            <SmilePlus size={16} />
+          </button>
+        </div>
 
-            {post.replies?.map((reply) => (
-              <div key={reply.id} className="ml-6 mt-3 p-2 rounded bg-[#3a3b3e]">
-                <div className="text-xs font-semibold text-[#f2f3f5]">↳ {reply.username}</div>
-                <div className="text-sm text-[#dbdee1]">{reply.message}</div>
-              </div>
-            ))}
+        {/* Emoji Picker */}
+        {showPickerFor === post.id && (
+          <div className="mt-3">
+            <Picker
+              data={data}
+              onEmojiSelect={(emoji) => {
+                handleReact(post.id, emoji.id);
+                setShowPickerFor(null);
+              }}
+              theme="dark"
+            />
+          </div>
+        )}
+
+        {/* Replies */}
+        {post.replies?.map((reply) => (
+          <div key={reply.id} className="mt-3 ml-6 p-2 rounded bg-[#3a3b3e]/60 backdrop-blur-md shadow-inner">
+            <div className="text-xs font-semibold text-[#f2f3f5]">↳ {reply.username}</div>
+            <div className="text-sm text-[#dbdee1]">{reply.message}</div>
           </div>
         ))}
-        <div ref={messagesEndRef}></div>
       </div>
+    ))}
+    <div ref={messagesEndRef}></div>
+  </div>
 
-      <div className="mt-4 flex gap-2">
-        <input
-          className="flex-1 bg-[#40444b] text-white rounded px-4 py-2 focus:outline-none"
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder={replyToPostId ? "Replying..." : "Type your message..."}
-        />
-        <button
-          onClick={handleSend}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded"
-        >
-          Send
-        </button>
-      </div>
-    </div>
+  {/* Message Input */}
+  <div className="mt-4 flex gap-2 px-4 pb-6">
+    <input
+      className="flex-1 bg-[#40444b] text-white rounded px-4 py-2 focus:outline-none backdrop-blur-md shadow-inner"
+      value={message}
+      onChange={(e) => setMessage(e.target.value)}
+      placeholder={replyToPostId ? "Replying..." : "Type your message..."}
+    />
+    <button
+      onClick={handleSend}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded shadow-lg"
+    >
+      Send
+    </button>
+  </div>
+</div>
+
   );
 }
 
