@@ -39,11 +39,11 @@ const RegisterPage = () => {
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Password must be at least 6 characters long.",
+        description: "Password must be at least 8 characters long.",
       });
       return;
     }
