@@ -306,6 +306,7 @@ function ChatPage() {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, 100);
   };
+ 
 
   return (
     <div className="max-w-3xl mx-auto py-10 px-4 h-screen bg-[#1e1f22] text-white flex flex-col">
