@@ -101,11 +101,14 @@ const StrategyCard = ({ strategy, isSubscribed, onUnlock }) => {
         </div>
       )}
 
-      {strategy.isSample && !isSubscribed && (
-         <Badge variant="default" className="absolute top-2 right-2 z-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-2 py-1 text-xs font-semibold shadow-md">
-          <Eye className="h-3.5 w-3.5 mr-1"/> Free Sample
-        </Badge>
-      )}
+     {strategy.isSample && !isSubscribed && (
+  <Badge
+    variant="default"
+    className="absolute top-0 left-1/2 transform -translate-x-1/2 z-20 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-2 py-1 text-xs font-semibold shadow-md flex items-center rounded-none"
+  >
+    <Eye className="h-3.5 w-3.5 mr-1" /> Free Sample
+  </Badge>
+)}
 
       <div className="flex justify-between items-start mb-3">
         <Badge variant={strategy.risk} className="flex items-center gap-1 text-xs py-0.5 px-2">

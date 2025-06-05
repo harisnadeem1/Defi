@@ -157,35 +157,53 @@ const HomePage = () => {
         )}
       </motion.div>
 
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4 text-center">Filter by Blockchain</h2>
-        <Tabs defaultValue="all" value={activeChainTab} onValueChange={setActiveChainTab}>
-          <TabsList className="w-full max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2 mb-8">
-            {topBlockchains.map(chain => (
-              <TabsTrigger
-                key={chain.value}
-                value={chain.value}
-                className="flex items-center justify-center gap-1 text-xs sm:text-sm px-2 py-1.5 h-auto"
-              >
-                <img src={chain.icon} alt={chain.name} className="w-4 h-4 sm:w-5 sm:h-5 object-contain" />
-                <span>{chain.name}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
+  <div className="mb-8">
+  <h2 className="text-2xl font-semibold mb-4 text-center">Filter by Blockchain</h2>
+  <Tabs defaultValue="all" value={activeChainTab} onValueChange={setActiveChainTab}>
+    <div className="w-full overflow-x-auto md:overflow-visible flex justify-start md:justify-center">
+      <TabsList className="inline-flex gap-2 px-2 py-2 bg-muted rounded-lg min-w-max md:min-w-0">
+        {topBlockchains.map(chain => (
+          <TabsTrigger
+            key={chain.value}
+            value={chain.value}
+            className="flex items-center gap-1 text-xs sm:text-sm px-3 py-1.5 whitespace-nowrap rounded-md"
+          >
+            <img
+              src={chain.icon}
+              alt={chain.name}
+              className="w-4 h-4 object-contain"
+            />
+            <span>{chain.name}</span>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+    </div>
+  </Tabs>
+</div>
 
-      <div className="mb-8">
-        <h2 className="text-2xl font-semibold mb-4 text-center">Filter by Risk Level</h2>
-        <Tabs defaultValue="all" value={activeRiskTab} onValueChange={setActiveRiskTab}>
-          <TabsList className="w-full max-w-md mx-auto grid grid-cols-4">
-            <TabsTrigger value="all" className="flex items-center justify-center gap-1"><Layers className="h-4 w-4" />All</TabsTrigger>
-            <TabsTrigger value="low" className="flex items-center justify-center gap-1"><Shield className="h-4 w-4 text-emerald-500" />Low</TabsTrigger>
-            <TabsTrigger value="medium" className="flex items-center justify-center gap-1"><Activity className="h-4 w-4 text-amber-500" />Medium</TabsTrigger>
-            <TabsTrigger value="high" className="flex items-center justify-center gap-1"><Zap className="h-4 w-4 text-rose-500" />High</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+
+   <div className="mb-8">
+  <h2 className="text-2xl font-semibold mb-4 text-center">Filter by Risk Level</h2>
+  <Tabs defaultValue="all" value={activeRiskTab} onValueChange={setActiveRiskTab}>
+    <div className="w-full overflow-x-auto flex justify-center">
+      <TabsList className="inline-flex gap-2 px-2 py-2 bg-muted rounded-lg min-w-max">
+        <TabsTrigger value="all" className="flex items-center gap-1 px-3 py-1.5 rounded-md">
+          <Layers className="h-4 w-4" />All
+        </TabsTrigger>
+        <TabsTrigger value="low" className="flex items-center gap-1 px-3 py-1.5 rounded-md">
+          <Shield className="h-4 w-4 text-emerald-500" />Low
+        </TabsTrigger>
+        <TabsTrigger value="medium" className="flex items-center gap-1 px-3 py-1.5 rounded-md">
+          <Activity className="h-4 w-4 text-amber-500" />Medium
+        </TabsTrigger>
+        <TabsTrigger value="high" className="flex items-center gap-1 px-3 py-1.5 rounded-md">
+          <Zap className="h-4 w-4 text-rose-500" />High
+        </TabsTrigger>
+      </TabsList>
+    </div>
+  </Tabs>
+</div>
+
 
       <div className="mt-8">
         {renderStrategyGrid(filteredStrategies)}

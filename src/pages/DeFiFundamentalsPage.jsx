@@ -25,12 +25,23 @@ const DeFiFundamentalsPage = () => {
       </motion.div>
 
       <Tabs defaultValue="learning-path" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-2 md:grid-cols-4 mb-8 max-w-3xl mx-auto">
-          <TabsTrigger value="learning-path">📘 Learning Path</TabsTrigger>
-          <TabsTrigger value="free-course">🎓 Free Course</TabsTrigger>
-          <TabsTrigger value="1to1-coaching">🤝 1-to-1 Coaching</TabsTrigger>
-          <TabsTrigger value="defi-tools">🛠️ DeFi Tools</TabsTrigger>
-        </TabsList>
+        <div className="w-full overflow-x-auto flex justify-start md:justify-center">
+  <TabsList className="inline-flex gap-2 px-2 py-2 bg-muted rounded-lg min-w-max">
+    <TabsTrigger value="learning-path" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
+      📘 Learning Path
+    </TabsTrigger>
+    <TabsTrigger value="free-course" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
+      🎓 Free Course
+    </TabsTrigger>
+    <TabsTrigger value="1to1-coaching" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
+      🤝 1-to-1 Coaching
+    </TabsTrigger>
+    <TabsTrigger value="defi-tools" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
+      🛠️ DeFi Tools
+    </TabsTrigger>
+  </TabsList>
+</div>
+
 
         <TabsContent value="learning-path">
           <LearningPathTab />
