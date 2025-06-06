@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, Trash2, Info } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox"; // Added for isSample
+import { Checkbox } from "@/components/ui/checkbox"; // Added for is_sample
 
 const StrategyForm = ({
   formData,
@@ -218,12 +218,12 @@ const StrategyForm = ({
             {/* Sample Strategy Toggle */}
             <div className="flex items-center space-x-2 pt-4 border-t mt-6">
               <Checkbox 
-                id="isSample" 
-                name="isSample"
-                checked={formData.isSample} 
-                onCheckedChange={(checked) => handleInputChange({ target: { name: 'isSample', type: 'checkbox', checked }})}
+                id="is_sample" 
+                name="is_sample"
+                checked={formData.is_sample} 
+                onCheckedChange={(checked) => handleInputChange({ target: { name: 'is_sample', type: 'checkbox', checked }})}
               />
-              <Label htmlFor="isSample" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              <Label htmlFor="is_sample" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                 Mark as Sample Strategy (Freely Visible)
               </Label>
             </div>

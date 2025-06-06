@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/lib/supabaseClient"; // at top
 import { useEffect, useState } from "react";
+import { addStrategyToDB } from "../api/strategies";
 
 
 
@@ -45,7 +46,7 @@ const initialStrategyFormData = {
   smartContractRisk: "Audited", // New
   impermanentLossRisk: "N/A", // New
   steps: [{ title: "", description: "", tip: "" }],
-  isSample: false,
+  is_sample: false,
 };
 
 
@@ -98,17 +99,21 @@ useEffect(() => {
 
 
 useEffect(() => {
-  const storedStrategies = JSON.parse(localStorage.getItem("strategies"));
-  if (storedStrategies && storedStrategies.length > 0) {
-    const hydrated = storedStrategies.map(s => ({ ...initialStrategyFormData, ...s }));
-    const sorted = hydrated.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // ✅ sort by newest first
-    setStrategies(sorted);
-  } else {
-    const initialFetchedStrategies = getInitialStrategies();
-    const sortedInitial = initialFetchedStrategies.map(s => ({ ...initialStrategyFormData, ...s }));
-    setStrategies(sortedInitial);
-    localStorage.setItem("strategies", JSON.stringify(initialFetchedStrategies));
-  }
+  const fetchStrategies = async () => {
+    const { data, error } = await supabase
+      .from("strategies")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching strategies:", error.message);
+      return;
+    }
+
+    setStrategies(data);
+  };
+
+  fetchStrategies();
 }, []);
 
   
@@ -145,50 +150,71 @@ useEffect(() => {
     setFormData(prev => ({ ...prev, steps: newSteps }));
   };
 
-  const handleSubmitStrategy = (e) => {
-    e.preventDefault();
-    if (formData.steps.length === 0) {
-        toast({ variant: "destructive", title: "Error", description: "A strategy must have at least one step."});
-        return;
-    }
-    const newStrategy = {
-      ...initialStrategyFormData, // Ensure all fields are present
+  const handleSubmitStrategy = async (e) => {
+  e.preventDefault();
+
+  if (formData.steps.length === 0) {
+    toast({ variant: "destructive", title: "Error", description: "A strategy must have at least one step." });
+    return;
+  }
+
+  try {
+    const normalizedForm = {
       ...formData,
-      id: editingStrategy ? editingStrategy.id : Date.now(),
-      createdAt: editingStrategy?.createdAt || new Date().toISOString().split("T")[0], // Preserve original createdAt if editing
-      updatedAt: new Date().toISOString().split("T")[0],
-      authorAvatar: editingStrategy?.authorAvatar || `/avatar-generic-${formData.blockchain?.toLowerCase() || 'default'}.jpg`, 
+      tags: Array.isArray(formData.tags)
+        ? formData.tags
+        : (formData.tags || "").split(",").map(tag => tag.trim()),
+      requiredProtocols: Array.isArray(formData.requiredProtocols)
+        ? formData.requiredProtocols
+        : (formData.requiredProtocols || "").split(",").map(p => p.trim()),
     };
 
-    let updatedStrategies;
+    let result;
+
     if (editingStrategy) {
-      updatedStrategies = strategies.map(s => s.id === editingStrategy.id ? newStrategy : s);
-      toast({ title: "Success!", description: "Strategy updated successfully." });
+      // 🔁 UPDATE strategy
+      const { data, error } = await supabase
+        .from("strategies")
+        .update(normalizedForm)
+        .eq("id", editingStrategy.id);
+
+      if (error) {
+        toast({ variant: "destructive", title: "Update Error", description: error.message });
+        return;
+      }
+
+      toast({ title: "✅ Strategy Updated", description: "Changes saved successfully." });
     } else {
-      updatedStrategies = [...strategies, newStrategy];
-      toast({ title: "Success!", description: "Strategy added successfully." });
-    }
-    
-    if (newStrategy.isSample) {
-        const sampleCount = updatedStrategies.filter(s => s.isSample).length;
-        if (sampleCount > 3 && (!editingStrategy || (editingStrategy && !editingStrategy.isSample))) { // Only adjust if adding a new sample or changing a non-sample to sample
-            const oldestSample = updatedStrategies
-                .filter(s => s.isSample && s.id !== newStrategy.id)
-                .sort((a,b) => new Date(a.createdAt) - new Date(b.createdAt))[0];
-            if (oldestSample) {
-                updatedStrategies = updatedStrategies.map(s => s.id === oldestSample.id ? {...s, isSample: false} : s);
-                 toast({ title: "Sample Limit", description: `Strategy "${oldestSample.title}" is no longer a sample to maintain the 3 sample limit.`, duration: 5000 });
-            }
-        }
+      // ➕ INSERT new strategy
+      const { data, error } = await supabase
+        .from("strategies")
+        .insert([normalizedForm]);
+
+      if (error) {
+        toast({ variant: "destructive", title: "Insert Error", description: error.message });
+        return;
+      }
+
+      toast({ title: "✅ Strategy Added", description: "Strategy added to Supabase." });
     }
 
-
-    setStrategies(updatedStrategies);
-    localStorage.setItem("strategies", JSON.stringify(updatedStrategies));
+    // Reset form
     setIsFormOpen(false);
     setEditingStrategy(null);
     resetStrategyForm();
-  };
+
+    // Optionally refetch strategies to update the list
+    const { data: refreshedStrategies } = await supabase
+      .from("strategies")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setStrategies(refreshedStrategies);
+
+  } catch (err) {
+    toast({ variant: "destructive", title: "Unexpected Error", description: err.message });
+  }
+};
 
   const resetStrategyForm = () => {
     setFormData(initialStrategyFormData);

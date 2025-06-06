@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useNavigate, useParams } from "react-router-dom";
-import { getStrategyById } from "@/lib/data";
 import SubscriptionModal from "@/components/SubscriptionModal";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "../lib/supabaseClient";
@@ -31,65 +30,55 @@ const StrategyDetail = () => {
   const [currentUser, setCurrentUser] = useState(null); 
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
 
-const updateUserSubscriptionStatus = useCallback(async () => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return setCurrentUser(null);
+  const updateUserSubscriptionStatus = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return setCurrentUser(null);
 
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", session.user.id)
-      .single();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", session.user.id)
+        .single();
 
-    if (profile) {
-      setCurrentUser({ ...session.user, ...profile });
-    } else {
+      if (profile) {
+        setCurrentUser({ ...session.user, ...profile });
+      } else {
+        setCurrentUser(null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user from Supabase:", error);
       setCurrentUser(null);
     }
-  } catch (error) {
-    console.error("Failed to fetch user from Supabase:", error);
-    setCurrentUser(null);
-  }
-}, []);
+  }, []);
+
+  const fetchStrategyFromDB = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("strategies")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !data) {
+      toast({
+        title: "Strategy not found",
+        description: "Could not fetch the strategy from database.",
+      });
+      return;
+    }
+    setStrategy(data);
+  }, [id, toast]);
 
   useEffect(() => {
-    const fetchedStrategy = getStrategyById(id);
-    setStrategy(fetchedStrategy);
-    updateUserSubscriptionStatus(); 
-
-    const handleStorageChange = (event) => {
-      if (event.key === "currentUser" || event.key === null) {
-        updateUserSubscriptionStatus();
-      }
-      if (event.key === "strategies" || event.key === null) {
-         const updatedStrategy = getStrategyById(id);
-         setStrategy(updatedStrategy);
-      }
-    };
-
-    const handleUserUpdate = () => {
-        updateUserSubscriptionStatus();
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('userUpdated', handleUserUpdate);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('userUpdated', handleUserUpdate);
-    };
-  }, [id, updateUserSubscriptionStatus]);
+    fetchStrategyFromDB();
+    updateUserSubscriptionStatus();
+  }, [fetchStrategyFromDB, updateUserSubscriptionStatus]);
 
   const isUserSubscribed = currentUser ? !!currentUser.isSubscribed : false;
-  
-  const effectivelyUnlocked = strategy && (isUserSubscribed || strategy.isSample);
-
+  const effectivelyUnlocked = strategy && (isUserSubscribed || strategy.is_sample);
 
   const handleUnlockRequest = () => {
-    if (strategy && strategy.isSample) { // Should not be called for samples
-        return;
-    }
+    if (strategy && strategy.is_sample) return;
     if (!currentUser) {
       toast({
         title: "Login Required",
@@ -100,17 +89,16 @@ const updateUserSubscriptionStatus = useCallback(async () => {
       setIsSubscriptionModalOpen(true);
     }
   };
-  
+
   const onSubscriptionSuccess = () => {
     updateUserSubscriptionStatus(); 
     setIsSubscriptionModalOpen(false);
-     toast({
-        title: "Subscription Successful!",
-        description: "Strategy unlocked. Happy exploring!",
-        className: "bg-green-500 text-white",
+    toast({
+      title: "Subscription Successful!",
+      description: "Strategy unlocked. Happy exploring!",
+      className: "bg-green-500 text-white",
     });
   };
-
 
   if (!strategy) {
     return (
@@ -161,7 +149,6 @@ const updateUserSubscriptionStatus = useCallback(async () => {
     );
   }
 
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <Button 
@@ -178,10 +165,13 @@ const updateUserSubscriptionStatus = useCallback(async () => {
         animate={{ opacity: 1, y: 0 }}
         className={`p-8 rounded-xl border shadow-lg risk-${strategy.risk} glass-effect relative`}
       >
-        {strategy.isSample && !isUserSubscribed && (
-            <Badge variant="default" className="absolute top-4 right-4 z-5 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1.5 text-sm font-semibold shadow-lg">
-                <Eye className="h-4 w-4 mr-1.5"/> Free Sample
-            </Badge>
+        {strategy.is_sample && !isUserSubscribed && (
+          <Badge
+  variant="default"
+  className="absolute top-0 left-1/2 -translate-x-1/2 z-10 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-3 py-1.5 text-sm font-semibold shadow-lg rounded-none"
+>
+  <Eye className="h-4 w-4 mr-1.5" /> Free Sample
+</Badge>
         )}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
           <h1 className="text-3xl font-bold">{strategy.title}</h1>
@@ -203,7 +193,7 @@ const updateUserSubscriptionStatus = useCallback(async () => {
               <p className="font-medium">{strategy.expectedReturn}</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-full bg-primary/10">
               <Calendar className="h-5 w-5 text-primary" />
@@ -213,7 +203,7 @@ const updateUserSubscriptionStatus = useCallback(async () => {
               <p className="font-medium">{strategy.timeFrame}</p>
             </div>
           </div>
-          
+
           <div className="flex items-center gap-3">
             <div className="p-3 rounded-full bg-primary/10">
               <User className="h-5 w-5 text-primary" />
@@ -222,8 +212,8 @@ const updateUserSubscriptionStatus = useCallback(async () => {
               <p className="text-sm text-muted-foreground">Created By</p>
               <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
-                   <AvatarImage src={strategy.authorAvatar} alt={strategy.author} />
-                  <AvatarFallback>{strategy.author ? strategy.author.charAt(0).toUpperCase() : 'A'}</AvatarFallback>
+                  <AvatarImage src={strategy.authorAvatar} alt={strategy.author} />
+                  <AvatarFallback>{strategy.author?.charAt(0).toUpperCase() || 'A'}</AvatarFallback>
                 </Avatar>
                 <p className="font-medium">{strategy.author}</p>
               </div>
@@ -235,7 +225,7 @@ const updateUserSubscriptionStatus = useCallback(async () => {
 
         <div>
           <h2 className="text-2xl font-bold mb-6">Step-by-Step Guide</h2>
-          
+
           <div className="space-y-8">
             {strategy.steps.map((step, index) => (
               <motion.div
@@ -264,12 +254,13 @@ const updateUserSubscriptionStatus = useCallback(async () => {
           </div>
         </div>
       </motion.div>
-       {isSubscriptionModalOpen && (
+
+      {isSubscriptionModalOpen && (
         <SubscriptionModal
           isOpen={isSubscriptionModalOpen}
           onClose={() => setIsSubscriptionModalOpen(false)}
           onSubscriptionSuccess={onSubscriptionSuccess}
-          stripePublishableKey="YOUR_STRIPE_PUBLISHABLE_KEY" 
+          stripePublishableKey="YOUR_STRIPE_PUBLISHABLE_KEY"
           stripePriceId="YOUR_STRIPE_PRICE_ID"
         />
       )}

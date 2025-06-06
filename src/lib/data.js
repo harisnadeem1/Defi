@@ -26,7 +26,7 @@ export const getDefaultStrategiesWithSampleFlag = () => {
     id: strategy.id || (index + 1) * 10000, // Ensure unique ID generation, avoid collision
     authorAvatar: strategy.authorAvatar || `/avatar-generic-${strategy.blockchain?.toLowerCase() || 'default'}.jpg`,
     blockchain: strategy.blockchain || "Ethereum", // Default blockchain
-    isSample: index < 3 // Mark the first 3 strategies as samples
+    is_sample: index < 3 // Mark the first 3 strategies as samples
   }));
 };
 
@@ -44,12 +44,12 @@ export const getStrategies = () => {
       const mergedStrategies = defaultStrategies.map(defaultStrategy => {
         const storedVersion = storedStrategies.find(s => s.id === defaultStrategy.id);
         if (storedVersion) {
-          // If stored version exists, use it but ensure isSample and authorAvatar are correctly set
-          // especially if isSample was added later or authorAvatar logic changed.
+          // If stored version exists, use it but ensure is_sample and authorAvatar are correctly set
+          // especially if is_sample was added later or authorAvatar logic changed.
           return {
-            ...defaultStrategy, // Start with defaults (like isSample)
+            ...defaultStrategy, // Start with defaults (like is_sample)
             ...storedVersion, // Overlay stored data (admin edits, etc.)
-            isSample: typeof storedVersion.isSample === 'boolean' ? storedVersion.isSample : defaultStrategy.isSample, // Prioritize stored isSample if it exists
+            is_sample: typeof storedVersion.is_sample === 'boolean' ? storedVersion.is_sample : defaultStrategy.is_sample, // Prioritize stored is_sample if it exists
             authorAvatar: storedVersion.authorAvatar || defaultStrategy.authorAvatar,
             blockchain: storedVersion.blockchain || defaultStrategy.blockchain,
           };
@@ -63,7 +63,7 @@ export const getStrategies = () => {
         if (!mergedStrategies.some(ms => ms.id === storedStrategy.id)) {
           mergedStrategies.push({
             ...storedStrategy,
-            isSample: typeof storedStrategy.isSample === 'boolean' ? storedStrategy.isSample : false, // Default non-samples to false
+            is_sample: typeof storedStrategy.is_sample === 'boolean' ? storedStrategy.is_sample : false, // Default non-samples to false
             authorAvatar: storedStrategy.authorAvatar || `/avatar-generic-${storedStrategy.blockchain?.toLowerCase() || 'default'}.jpg`,
             blockchain: storedStrategy.blockchain || "Ethereum",
           });
@@ -80,14 +80,14 @@ export const getStrategies = () => {
         }
       });
       
-      // Re-map to ensure isSample is correctly set for the first 3 overall,
+      // Re-map to ensure is_sample is correctly set for the first 3 overall,
       // This is a bit redundant given the defaultStrategies already have it, but acts as a final check.
       const finalStrategies = mergedStrategies.map((s, index) => ({
         ...s,
         // If the strategy was identified as a sample in defaultStrategies, keep that.
-        // Otherwise, if it's one of the first 3 in the final merged list AND doesn't have isSample explicitly set to false, make it a sample.
+        // Otherwise, if it's one of the first 3 in the final merged list AND doesn't have is_sample explicitly set to false, make it a sample.
         // This ensures newly added strategies via code (if they become one of the first 3) get the sample flag.
-        isSample: defaultStrategies.find(ds => ds.id === s.id)?.isSample ?? (index < 3 && s.isSample !== false)
+        is_sample: defaultStrategies.find(ds => ds.id === s.id)?.is_sample ?? (index < 3 && s.is_sample !== false)
       }));
       
       // Update localStorage with the potentially corrected/merged list

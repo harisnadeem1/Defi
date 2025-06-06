@@ -64,23 +64,38 @@ const HomePage = () => {
     }
   }, []);
 
+  const fetchStrategiesFromDB = async () => {
+  const { data, error } = await supabase
+    .from("strategies")
+    .select("*");
+
+  if (error) {
+    console.error("Error fetching strategies:", error.message);
+    return;
+  }
+
+  setCurrentStrategies(data);
+};
+
+
   useEffect(() => {
-    setCurrentStrategies(getStrategies());
+  fetchStrategiesFromDB(); // 👈 call dynamic fetch
+  fetchCurrentUser();
+
+  const { data: listener } = supabase.auth.onAuthStateChange(() => {
     fetchCurrentUser();
+    fetchStrategiesFromDB(); // refresh on auth change
+  });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      fetchCurrentUser();
-    });
-
-    return () => {
-      listener?.subscription?.unsubscribe();
-    };
-  }, [fetchCurrentUser]);
+  return () => {
+    listener?.subscription?.unsubscribe();
+  };
+}, [fetchCurrentUser]);
 
   const isUserSubscribed = currentUser?.is_subscribed || false;
 
   const handleUnlockStrategy = (strategy) => {
-    if (strategy.isSample) {
+    if (strategy.is_sample) {
       navigate(`/strategy/${strategy.id}`);
       return;
     }

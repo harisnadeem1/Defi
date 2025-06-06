@@ -47,7 +47,7 @@ const StrategyCard = ({ strategy, isSubscribed, onUnlock }) => {
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState(null);
 
-  const effectivelyUnlocked = isSubscribed || strategy.isSample;
+  const effectivelyUnlocked = isSubscribed || strategy.is_sample;
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -60,7 +60,8 @@ const StrategyCard = ({ strategy, isSubscribed, onUnlock }) => {
   const handleViewStrategy = () => {
     if (effectivelyUnlocked) {
       navigate(`/strategy/${strategy.id}`);
-    } else {
+    } 
+    else {
       if (!currentUser) {
         toast({
           title: "Login Required",
@@ -101,7 +102,7 @@ const StrategyCard = ({ strategy, isSubscribed, onUnlock }) => {
         </div>
       )}
 
-     {strategy.isSample && !isSubscribed && (
+     {strategy.is_sample && !isSubscribed && (
   <Badge
     variant="default"
     className="absolute top-0 left-1/2 transform -translate-x-1/2 z-20 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-2 py-1 text-xs font-semibold shadow-md flex items-center rounded-none"
@@ -139,7 +140,13 @@ const StrategyCard = ({ strategy, isSubscribed, onUnlock }) => {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Added:</span>
-              <span className="font-medium">{strategy.createdAt}</span>
+              <span className="font-medium">
+  {new Date(strategy.created_at).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  })}
+</span>
             </div>
           </div>
         </>
