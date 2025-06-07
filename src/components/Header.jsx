@@ -113,11 +113,11 @@ const Header = () => {
                 <BookOpen className="h-4 w-4" /> Learn DeFi
               </Link>
             </Button>
-            <Button variant="ghost" asChild className={navLinkClasses("/wiki")}>
+            {/* <Button variant="ghost" asChild className={navLinkClasses("/wiki")}>
               <Link to="/wiki" className="gap-1">
                 <BookMarked className="h-4 w-4" /> DeFi Wiki
               </Link>
-            </Button>
+            </Button> */}
             {currentUser && (
               <Button variant="ghost" asChild className={navLinkClasses("/chat")}>
                 <Link to="/chat" className="gap-1">

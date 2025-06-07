@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Zap, Shield, BarChart, Users, Puzzle, Sparkles, Lock, Layers, TrendingUp } from 'lucide-react';
+import FAQSection from "@/components/FAQSection";
+import ReviewCarousel from "@/components/ReviewCarousel";
 
 const fadeInUp = {
   initial: { opacity: 0, y: 60 },
@@ -271,6 +273,11 @@ const LandingPage = () => {
           </motion.div>
         </div>
       </section>
+
+      <FAQSection />
+
+
+      <ReviewCarousel />
     </div>
   );
 };

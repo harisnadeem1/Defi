@@ -25,21 +25,23 @@ const DeFiFundamentalsPage = () => {
       </motion.div>
 
       <Tabs defaultValue="learning-path" className="w-full">
-        <div className="w-full overflow-x-auto flex justify-start md:justify-center">
-  <TabsList className="inline-flex gap-2 px-2 py-2 bg-muted rounded-lg min-w-max">
-    <TabsTrigger value="learning-path" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
-      📘 Learning Path
-    </TabsTrigger>
-    <TabsTrigger value="free-course" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
-      🎓 Free Course
-    </TabsTrigger>
-    <TabsTrigger value="1to1-coaching" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
-      🤝 1-to-1 Coaching
-    </TabsTrigger>
-    <TabsTrigger value="defi-tools" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
-      🛠️ DeFi Tools
-    </TabsTrigger>
-  </TabsList>
+     <div className="w-full flex justify-center mb-8">
+  <div className="bg-muted rounded-lg p-2 w-full md:w-auto">
+    <TabsList className="bg-transparent p-0 h-auto grid grid-cols-2 gap-2 w-full md:flex md:gap-2 md:w-auto">
+      <TabsTrigger value="learning-path" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
+        📘 Learning Path
+      </TabsTrigger>
+      <TabsTrigger value="free-course" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
+        🎓 Free Course
+      </TabsTrigger>
+      <TabsTrigger value="1to1-coaching" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
+        🤝 1-to-1 Coaching
+      </TabsTrigger>
+      <TabsTrigger value="defi-tools" className="text-sm font-medium px-4 py-2 whitespace-nowrap">
+        🛠️ DeFi Tools
+      </TabsTrigger>
+    </TabsList>
+  </div>
 </div>
 
 

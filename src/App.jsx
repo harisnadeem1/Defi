@@ -13,9 +13,15 @@ import AdminPage from "@/pages/AdminPage";
 import ProfilePage from "@/pages/ProfilePage";
 import ChatPage from "@/pages/ChatPage";
 import DeFiFundamentalsPage from "@/pages/DeFiFundamentalsPage";
-import DeFiWikiPage from "@/pages/DeFiWikiPage"; // New Wiki Page
+import DeFiWikiPage from "@/pages/DeFiWikiPage";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import CrateButton from "./components/CrateButton";
+import PrivateRoute from "@/components/PrivateRoute";
+import LegalPage from "@/pages/LegalPage";
+import ContactPage from "@/pages/ContactPage";
+
+// Add this route
+
+// Inside your <Routes>
 
 
 function App() {
@@ -27,14 +33,49 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/strategies" element={<HomePage />} />
-            <Route path="/strategy/:id" element={<StrategyPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/admin-login" element={<AdminLoginPage />} />
-            <Route path="/learn-defi" element={<DeFiFundamentalsPage />} />
-            <Route path="/wiki" element={<DeFiWikiPage />} /> {/* New Wiki Route */}
-            
+<Route path="/legal/:slug" element={<LegalPage />} />
+<Route path="/contact" element={<ContactPage />} />
+
+
+
+            {/* Routes that require user to be logged in (any role) */}
+            <Route
+              path="/strategies"
+              element={
+                <PrivateRoute>
+                  <HomePage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/strategy/:id"
+              element={
+                <PrivateRoute>
+                  <StrategyPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/learn-defi"
+              element={
+                <PrivateRoute>
+                  <DeFiFundamentalsPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/wiki"
+              element={
+                <PrivateRoute>
+                  <DeFiWikiPage />
+                </PrivateRoute>
+              }
+            />
+
+            {/* Role-based protected routes */}
             <Route element={<ProtectedRoute allowedRoles={['user', 'worker', 'admin']} />}>
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/chat" element={<ChatPage />} />
@@ -43,7 +84,6 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['admin', 'worker']} />}>
               <Route path="/admin" element={<AdminPage />} />
             </Route>
-
           </Routes>
         </main>
 
