@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 const reviews =[
   {
     name: "Liam Parker",
-    image: "/Avatars/Liam Parker.webp",
+    image: "/Avatars/Liam-Parker.webp",
     message: "DeFiStrategies helped me understand how to earn passive income through staking. The tutorials are super clear and beginner-friendly. I started earning yield within days!"
   },
   {
