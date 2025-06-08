@@ -1,175 +1,20 @@
-// import React, { useState, useEffect, useRef } from "react";
-// import { motion } from "framer-motion";
-// import { Button } from "@/components/ui/button";
-// import { Input } from "@/components/ui/input";
-// import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-// import { Send, MessagesSquare } from "lucide-react";
-// import { useToast } from "@/components/ui/use-toast";
-// import { useNavigate } from "react-router-dom";
-// import { supabase } from "@/lib/supabaseClient"; // ✅ import supabase
-
-// const ChatPage = () => {
-//   const [messages, setMessages] = useState([]);
-//   const [newMessage, setNewMessage] = useState("");
-//   const [currentUser, setCurrentUser] = useState(null);
-//   const messagesEndRef = useRef(null);
-//   const { toast } = useToast();
-//   const navigate = useNavigate();
-
-//   useEffect(() => {
-//     const fetchUser = async () => {
-//       const { data: { session } } = await supabase.auth.getSession();
-//       if (!session?.user) {
-//         toast({
-//           variant: "destructive",
-//           title: "Authentication Required",
-//           description: "Please log in to access the community chat.",
-//         });
-//         navigate("/login");
-//         return;
-//       }
-
-//       const { data: profile } = await supabase
-//         .from("profiles")
-//         .select("*")
-//         .eq("id", session.user.id)
-//         .single();
-
-//       setCurrentUser(profile);
-//     };
-
-//     fetchUser();
-
-//     // Temporary fallback until you store messages in Supabase
-//     const storedMessages = JSON.parse(localStorage.getItem("chatMessages")) || [];
-//     setMessages(storedMessages);
-//   }, [navigate, toast]);
-
-//   useEffect(() => {
-//     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-//   }, [messages]);
-
-//   const handleSendMessage = async (e) => {
-//     e.preventDefault();
-//     if (!newMessage.trim() || !currentUser) return;
-
-//     const messageData = {
-//       id: Date.now(),
-//       text: newMessage,
-//       sender: currentUser.username || currentUser.email?.split('@')[0],
-//       email: currentUser.email,
-//       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-//     };
-
-//     const updatedMessages = [...messages, messageData];
-//     setMessages(updatedMessages);
-//     localStorage.setItem("chatMessages", JSON.stringify(updatedMessages));
-//     setNewMessage("");
-//   };
-
-//   const getAvatarColor = (email) => {
-//     let hash = 0;
-//     for (let i = 0; i < email.length; i++) {
-//       hash = email.charCodeAt(i) + ((hash << 5) - hash);
-//     }
-//     const c = (hash & 0x00FFFFFF).toString(16).toUpperCase();
-//     return "#" + "00000".substring(0, 6 - c.length) + c;
-//   };
-
-//   return (
-//     <div className="container mx-auto px-4 py-8 h-[calc(100vh-160px)] flex flex-col">
-//       <motion.div
-//         initial={{ opacity: 0, y: -20 }}
-//         animate={{ opacity: 1, y: 0 }}
-//         className="flex items-center gap-3 mb-6"
-//       >
-//         <MessagesSquare className="h-8 w-8 text-primary" />
-//         <h1 className="text-3xl font-bold text-gradient">Community Chat</h1>
-//       </motion.div>
-
-//       <motion.div 
-//         className="flex-1 flex flex-col bg-card border rounded-xl shadow-xl overflow-hidden glass-effect"
-//         initial={{ opacity: 0, scale: 0.95 }}
-//         animate={{ opacity: 1, scale: 1 }}
-//         transition={{ duration: 0.3 }}
-//       >
-//         <div className="flex-1 p-6 space-y-4 overflow-y-auto">
-//           {messages.map((msg) => (
-//             <motion.div
-//               key={msg.id}
-//               initial={{ opacity: 0, y: 10 }}
-//               animate={{ opacity: 1, y: 0 }}
-//               transition={{ duration: 0.2 }}
-//               className={`flex items-start gap-3 ${
-//                 currentUser && msg.email === currentUser.email ? "justify-end" : ""
-//               }`}
-//             >
-//               {currentUser && msg.email !== currentUser.email && (
-//                 <Avatar className="h-10 w-10 border-2" style={{ borderColor: getAvatarColor(msg.email) }}>
-//                   <AvatarFallback style={{ backgroundColor: getAvatarColor(msg.email), color: '#fff' }}>
-//                     {msg.sender.charAt(0).toUpperCase()}
-//                   </AvatarFallback>
-//                 </Avatar>
-//               )}
-//               <div
-//                 className={`max-w-xs md:max-w-md p-3 rounded-lg ${
-//                   currentUser && msg.email === currentUser.email
-//                     ? "bg-primary text-primary-foreground rounded-br-none"
-//                     : "bg-muted rounded-bl-none"
-//                 }`}
-//               >
-//                 <p className="text-sm font-semibold">{msg.sender}</p>
-//                 <p>{msg.text}</p>
-//                 <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>
-//               </div>
-//               {currentUser && msg.email === currentUser.email && (
-//                 <Avatar className="h-10 w-10 border-2" style={{ borderColor: getAvatarColor(msg.email) }}>
-//                   <AvatarFallback style={{ backgroundColor: getAvatarColor(msg.email), color: '#fff' }}>
-//                     {msg.sender.charAt(0).toUpperCase()}
-//                   </AvatarFallback>
-//                 </Avatar>
-//               )}
-//             </motion.div>
-//           ))}
-//           <div ref={messagesEndRef} />
-//         </div>
-
-//         <form
-//           onSubmit={handleSendMessage}
-//           className="p-4 border-t bg-background/80 backdrop-blur-sm flex items-center gap-3"
-//         >
-//           <Input
-//             type="text"
-//             placeholder="Type your message..."
-//             value={newMessage}
-//             onChange={(e) => setNewMessage(e.target.value)}
-//             className="flex-1 bg-input/70"
-//             disabled={!currentUser}
-//           />
-//           <Button type="submit" disabled={!newMessage.trim() || !currentUser} className="gap-2">
-//             Send <Send className="h-4 w-4" />
-//           </Button>
-//         </form>
-//       </motion.div>
-//     </div>
-//   );
-// };
-
-// export default ChatPage;
-
-
-
-
-// src/pages/ChatPage.jsx
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { mmGet, mmPost } from "../api/mattermostClient";
 import { supabase } from "@/lib/supabaseClient";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import emoji from "emoji-dictionary";
-import { MessageCircle, SmilePlus } from "lucide-react"; 
+import { MessageCircle, SmilePlus } from "lucide-react";
 
-const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
+const DEFAULT_CHANNELS = [
+  { name: "general", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID },
+  { name: "strategy-feedback", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_STRATEGY },
+  { name: "onboarding-support", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_BIGGNEER },
+  { name: "wins", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_WINS },
+  { name: "alerts", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_RISKS },
+  { name: "tools", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_TOOLS },
+  { name: "lounge", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_LOUNGE }
+];
 
 function ChatPage() {
   const [posts, setPosts] = useState([]);
@@ -178,25 +23,11 @@ function ChatPage() {
   const [mmUserId, setMmUserId] = useState(null);
   const [showPickerFor, setShowPickerFor] = useState(null);
   const [replyToPostId, setReplyToPostId] = useState(null);
-  const messagesEndRef = useRef(null);
+  const [selectedChannel, setSelectedChannel] = useState(DEFAULT_CHANNELS[0]);
+  const [showChannelMenu, setShowChannelMenu] = useState(false);
 
-  const handleReact = async (postId, emoji = "thumbsup") => {
-    if (!mmUserId || !mmToken) return;
-    try {
-      await mmPost(
-        "/reactions",
-        {
-          post_id: postId,
-          user_id: mmUserId,
-          emoji_name: emoji,
-        },
-        mmToken
-      );
-      fetchMessages();
-    } catch (error) {
-      console.error("Failed to react to message:", error.message);
-    }
-  };
+  const messagesWrapperRef = useRef(null);
+  const visitedChannelsRef = useRef(new Set());
 
   useEffect(() => {
     const fetchMattermostCredentials = async () => {
@@ -222,16 +53,31 @@ function ChatPage() {
   }, []);
 
   useEffect(() => {
-    if (mmToken) {
+    if (mmToken && selectedChannel?.id) {
       fetchMessages();
       const interval = setInterval(fetchMessages, 5000);
       return () => clearInterval(interval);
     }
-  }, [mmToken]);
+  }, [mmToken, selectedChannel]);
+
+  useEffect(() => {
+    if (!selectedChannel?.id || posts.length === 0) return;
+
+    if (!visitedChannelsRef.current.has(selectedChannel.id)) {
+      scrollToBottom();
+      visitedChannelsRef.current.add(selectedChannel.id);
+    }
+  }, [posts, selectedChannel]);
+
+  const scrollToBottom = () => {
+    if (messagesWrapperRef.current) {
+      messagesWrapperRef.current.scrollTop = messagesWrapperRef.current.scrollHeight;
+    }
+  };
 
   const fetchMessages = async () => {
     try {
-      const data = await mmGet(`/channels/${CHANNEL_ID}/posts`, mmToken);
+      const data = await mmGet(`/channels/${selectedChannel.id}/posts`, mmToken);
       const messages = Object.values(data.posts);
       const rootPosts = messages.filter((msg) => !msg.root_id);
       const replies = messages.filter((msg) => msg.root_id);
@@ -244,17 +90,13 @@ function ChatPage() {
           let reactions = [];
           try {
             reactions = await mmGet(`/posts/${msg.id}/reactions`, mmToken);
-          } catch (err) {
+          } catch {
             reactions = [];
           }
 
           const groupedReactions = {};
           (reactions || []).forEach((reaction) => {
-            if (!groupedReactions[reaction.emoji_name]) {
-              groupedReactions[reaction.emoji_name] = 1;
-            } else {
-              groupedReactions[reaction.emoji_name]++;
-            }
+            groupedReactions[reaction.emoji_name] = (groupedReactions[reaction.emoji_name] || 0) + 1;
           });
 
           const msgReplies = replies
@@ -288,7 +130,7 @@ function ChatPage() {
       await mmPost(
         "/posts",
         {
-          channel_id: CHANNEL_ID,
+          channel_id: selectedChannel.id,
           message,
           root_id: replyToPostId || null,
         },
@@ -302,123 +144,208 @@ function ChatPage() {
     }
   };
 
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-  };
- 
+  const handleReact = async (postId, emojiName) => {
+  if (!mmToken || !postId || !emojiName) return;
 
-  return (
-   <div className="max-w-3xl mx-auto h-screen flex flex-col bg-[#1e1f22] text-white font-sans">
-  <header className="py-6 px-4 border-b border-[#2c2f33] bg-[#2b2d31]/80 backdrop-blur-md shadow-md">
-    <h1 className="text-2xl font-bold text-center text-gray-200 tracking-wide">💬 Community Chat</h1>
-  </header>
+  try {
+    await mmPost(
+      "/reactions",
+      {
+        user_id: mmUserId,
+        post_id: postId,
+        emoji_name: emojiName,
+      },
+      mmToken
+    );
+    fetchMessages(); // Refresh messages to update reactions
+  } catch (error) {
+    console.error("Failed to react to post:", error);
+  }
+};
 
-  <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 bg-[#2b2d31]">
-    {posts.map((post) => (
+ // (Everything above this line remains unchanged)
+
+return (
+  <div className="h-screen flex font-sans text-sm text-white bg-[#313338]">
+    {/* Sidebar */}
+    <div className="w-60 bg-[#1e1f22] p-4 flex-col gap-2 hidden sm:flex">
+      <h2 className="text-xs uppercase tracking-wide text-gray-400 mb-3">Text Channels</h2>
+      {DEFAULT_CHANNELS.map((ch) => (
+        <div
+          key={ch.id}
+          onClick={() => setSelectedChannel(ch)}
+          className={`px-3 py-2 rounded-lg cursor-pointer transition-all duration-150 ${
+            selectedChannel.id === ch.id
+              ? "bg-[#404249] text-white font-medium"
+              : "text-gray-300 hover:bg-[#2b2d31] hover:text-white"
+          }`}
+        >
+          # {ch.name}
+        </div>
+      ))}
+    </div>
+
+    {/* Main Chat Area */}
+    <div className="flex-1 flex flex-col h-screen">
+      {/* Header */}
+      <div className="h-14 sticky top-0 z-10 flex items-center px-4 border-b border-[#202225] bg-[#2b2d31] shadow-sm justify-between">
+        <h1 className="text-lg font-semibold truncate max-w-[90%]">#{selectedChannel.name.replace(/-/g, " ")}</h1>
+
+        {/* Optional: Mobile channel switcher */}
+        {/* <div className="sm:hidden relative">
+          <select
+            value={selectedChannel.id}
+            onChange={(e) => {
+              const ch = DEFAULT_CHANNELS.find((c) => c.id === e.target.value);
+              if (ch) setSelectedChannel(ch);
+            }}
+            className="bg-[#40444b] text-white text-xs px-2 py-1 rounded border-none"
+          >
+            {DEFAULT_CHANNELS.map((ch) => (
+              <option key={ch.id} value={ch.id}>
+                #{ch.name}
+              </option>
+            ))}
+          </select>
+        </div> */}
+      </div>
+
+      {/* Messages */}
       <div
-        key={post.id}
-        className={`relative p-4 rounded-lg backdrop-blur-md shadow-inner ${
-          post.isOwnMessage
-            ? "bg-blue-600/60 ml-auto max-w-md"
-            : "bg-[#313338]/60 max-w-md"
-        }`}
+        ref={messagesWrapperRef}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-6 bg-[#313338] min-h-0"
       >
-        {/* Avatar and Username */}
-        <div className="flex items-center gap-2 mb-1">
-          <img
-            src={`https://ui-avatars.com/api/?name=${post.username}`}
-            alt="avatar"
-            className="w-7 h-7 rounded-full"
-          />
-          <span className="text-sm font-semibold text-gray-100">{post.username}</span>
-          <span className="text-xs text-gray-400 ml-auto">
-            {new Date(post.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </div>
-
-        {/* Message Content */}
-        <p className="text-sm text-gray-200 leading-snug">{post.message}</p>
-
-        {/* Reactions */}
-        <div className="mt-2 flex gap-2 flex-wrap">
-          {Object.entries(post.reactions || {}).map(([emojiName, count]) => {
-            const emojiChar = emoji.getUnicode(emojiName);
-            if (!emojiChar) return null;
-            return (
-              <span
-                key={emojiName}
-                className="text-sm px-2 py-1 bg-[#444] rounded-full hover:bg-[#555] cursor-pointer"
-              >
-                {emojiChar} {count}
+        {posts.map((post) => (
+          <div
+            key={post.id}
+            className={`relative px-4 py-3 rounded-md break-words ${
+              post.isOwnMessage ? "bg-[#5865f2]/30 ml-auto max-w-full sm:max-w-xl" : "bg-[#2f3136] max-w-full sm:max-w-xl"
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-1">
+              <img
+                src={`https://ui-avatars.com/api/?name=${post.username}`}
+                alt="avatar"
+                className="w-8 h-8 rounded-full"
+              />
+              <span className="font-semibold text-white">{post.username}</span>
+              <span className="text-xs text-gray-400 ml-2 truncate">
+                {new Date(post.create_at).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </span>
-            );
-          })}
-        </div>
+            </div>
 
-        {/* Actions - Icons */}
-        <div className="text-xs  flex justify-end gap-3 text-gray-400">
-          <button
-            onClick={() => setReplyToPostId(post.id)}
-            className="hover:text-gray-200"
-            title="Reply"
-          >
-            <MessageCircle size={16} />
-          </button>
-          <button
-            onClick={() => setShowPickerFor((prev) => (prev === post.id ? null : post.id))}
-            className="hover:text-gray-200"
-            title="React"
-          >
-            <SmilePlus size={16} />
-          </button>
-        </div>
+            <p className="text-white whitespace-pre-wrap">{post.message}</p>
 
-        {/* Emoji Picker */}
-        {showPickerFor === post.id && (
-          <div className="mt-3">
-            <Picker
-              data={data}
-              onEmojiSelect={(emoji) => {
-                handleReact(post.id, emoji.id);
-                setShowPickerFor(null);
-              }}
-              theme="dark"
-            />
-          </div>
-        )}
+            <div className="mt-2 flex gap-2 flex-wrap">
+              {Object.entries(post.reactions || {}).map(([emojiName, count]) => {
+                const emojiChar = emoji.getUnicode(emojiName);
+                if (!emojiChar) return null;
+                return (
+                  <span
+                    key={emojiName}
+                    className="text-sm px-2 py-1 bg-[#4f545c] rounded-full hover:bg-[#5a5e66] cursor-pointer"
+                  >
+                    {emojiChar} {count}
+                  </span>
+                );
+              })}
+            </div>
 
-        {/* Replies */}
-        {post.replies?.map((reply) => (
-          <div key={reply.id} className="mt-3 ml-6 p-2 rounded bg-[#3a3b3e]/60 backdrop-blur-md shadow-inner">
-            <div className="text-xs font-semibold text-[#f2f3f5]">↳ {reply.username}</div>
-            <div className="text-sm text-[#dbdee1]">{reply.message}</div>
+            <div className="text-xs flex justify-end gap-2 text-gray-400 mt-1">
+              <button onClick={() => setReplyToPostId(post.id)} title="Reply">
+                <MessageCircle size={16} />
+              </button>
+              <button
+                onClick={() =>
+                  setShowPickerFor((prev) => (prev === post.id ? null : post.id))
+                }
+                title="React"
+              >
+                <SmilePlus size={16} />
+              </button>
+            </div>
+
+            {showPickerFor === post.id && (
+              <div className="mt-3 z-50">
+                <Picker
+                  data={data}
+                  onEmojiSelect={(emoji) => {
+                    handleReact(post.id, emoji.id);
+                    setShowPickerFor(null);
+                  }}
+                  theme="dark"
+                />
+              </div>
+            )}
+
+            {post.replies?.map((reply) => (
+              <div key={reply.id} className="mt-3 ml-4 p-2 rounded bg-[#2c2f33]">
+                <div className="text-xs font-semibold text-[#f2f3f5]">↳ {reply.username}</div>
+                <div className="text-sm text-white">{reply.message}</div>
+              </div>
+            ))}
           </div>
         ))}
       </div>
-    ))}
-    <div ref={messagesEndRef}></div>
-  </div>
 
-  {/* Message Input */}
-  <div className="mt-4 flex gap-2 px-4 pb-6">
-    <input
-      className="flex-1 bg-[#40444b] text-white rounded px-4 py-2 focus:outline-none backdrop-blur-md shadow-inner"
-      value={message}
-      onChange={(e) => setMessage(e.target.value)}
-      placeholder={replyToPostId ? "Replying..." : "Type your message..."}
-    />
-    <button
-      onClick={handleSend}
-      className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded shadow-lg"
-    >
-      Send
-    </button>
-  </div>
+      {/* Input */}
+      <div className="h-auto px-4 py-3 flex gap-2 bg-[#2b2d31] border-t border-[#202225] shrink-0">
+       <div className="relative sm:hidden">
+  <button
+    onClick={() => setShowChannelMenu((prev) => !prev)}
+    className="bg-[#40444b] text-white px-3 py-2 rounded-md mr-2"
+  >
+    #
+  </button>
+
+  {showChannelMenu && (
+    <div className="absolute bottom-12 left-0 z-50 bg-[#2b2d31] border border-[#202225] rounded shadow-md w-48 max-h-60 overflow-y-auto">
+      {DEFAULT_CHANNELS.map((ch) => (
+        <div
+          key={ch.id}
+          onClick={() => {
+            setSelectedChannel(ch);
+            setShowChannelMenu(false);
+          }}
+          className={`px-4 py-2 cursor-pointer hover:bg-[#404249] ${
+            selectedChannel.id === ch.id ? "bg-[#404249] font-semibold" : ""
+          }`}
+        >
+          # {ch.name}
+        </div>
+      ))}
+    </div>
+  )}
 </div>
 
-  );
-}
+{/* Chat Input */}
+<input
+  className="flex-1 rounded-md bg-[#40444b] px-4 py-2 text-white placeholder:text-gray-400 focus:outline-none text-sm"
+  placeholder={replyToPostId ? "Replying..." : "Message #" + selectedChannel.name}
+  value={message}
+  onChange={(e) => setMessage(e.target.value)}
+/>
+        <button
+          onClick={handleSend}
+          className="bg-[#5865f2] hover:bg-[#4752c4] text-white px-4 py-2 rounded-md shadow text-sm"
+        >
+          Send
+        </button>
+      </div>
 
+      {/* Scroll Button */}
+      <button
+        onClick={scrollToBottom}
+className="hidden sm:fixed sm:bottom-16 sm:right-4 z-50 bg-[#5865f2] text-white px-3 py-2 rounded-full hover:bg-[#4752c4] shadow-lg"
+
+      >
+        ↓
+      </button>
+    </div>
+  </div>
+);
+}
 export default ChatPage;

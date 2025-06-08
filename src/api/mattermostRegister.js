@@ -1,21 +1,26 @@
 export async function registerMattermostUser({ email, username, password }) {
-
- 
-
-
-
   const MATTERMOST_BASE_URL = import.meta.env.VITE_MATTERMOST_BASE_URL;
-const MATTERMOST_ADMIN_TOKEN = import.meta.env.VITE_MATTERMOST_ADMIN_TOKEN;
-const TEAM_ID = import.meta.env.VITE_MATTERMOST_TEAM_ID;
-const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
+  const MATTERMOST_ADMIN_TOKEN = import.meta.env.VITE_MATTERMOST_ADMIN_TOKEN;
+  const TEAM_ID = import.meta.env.VITE_MATTERMOST_TEAM_ID;
 
+  // All channel IDs to join
+  const CHANNEL_IDS = [
+    import.meta.env.VITE_MATTERMOST_CHANNEL_ID,              // general
+    import.meta.env.VITE_MATTERMOST_CHANNEL_ID_BIGGNEER,
+    import.meta.env.VITE_MATTERMOST_CHANNEL_ID_RISKS,
+    import.meta.env.VITE_MATTERMOST_CHANNEL_ID_TOOLS,
+    import.meta.env.VITE_MATTERMOST_CHANNEL_ID_WINS,
+    import.meta.env.VITE_MATTERMOST_CHANNEL_ID_LOUNGE,
+    import.meta.env.VITE_MATTERMOST_CHANNEL_ID_STRATEGY
+              // lounge
+  ];
 
   // 1. Create Mattermost User
   const userRes = await fetch(`${MATTERMOST_BASE_URL}/users`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`, // REPLACE THIS
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
     },
     body: JSON.stringify({
       email,
@@ -45,22 +50,26 @@ const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
     throw new Error(err.message || "Failed to add to team");
   }
 
-  // 3. Add to Channel
-  const channelRes = await fetch(`${MATTERMOST_BASE_URL}/channels/${CHANNEL_ID}/members`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
-    },
-    body: JSON.stringify({
-      channel_id: CHANNEL_ID,
-      user_id: user.id,
-    }),
-  });
+  // 3. Add to All Channels
+  for (const channelId of CHANNEL_IDS) {
+    if (!channelId) continue; // skip undefined envs
+    const channelRes = await fetch(`${MATTERMOST_BASE_URL}/channels/${channelId}/members`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
+      },
+      body: JSON.stringify({
+        channel_id: channelId,
+        user_id: user.id,
+      }),
+    });
 
-  if (!channelRes.ok) {
-    const err = await channelRes.json();
-    throw new Error(err.message || "Failed to add to channel");
+    if (!channelRes.ok) {
+      const err = await channelRes.json();
+      console.warn(`Failed to add to channel ${channelId}: ${err.message}`);
+      // optional: throw new Error(err.message || `Failed to add to channel ${channelId}`);
+    }
   }
 
   // 4. Login to get token
@@ -78,31 +87,33 @@ const CHANNEL_ID = import.meta.env.VITE_MATTERMOST_CHANNEL_ID;
   const tokenData = await loginRes.json();
   if (!loginRes.ok) throw new Error(tokenData.message || "Login failed");
 
-  const token = loginRes.headers.get("token") || loginRes.headers.get("Token") || loginRes.headers.get("Authorization");
-const cookie = loginRes.headers.get("set-cookie");
-  console.log(user.id,token,cookie);
+  const token =
+    loginRes.headers.get("token") ||
+    loginRes.headers.get("Token") ||
+    loginRes.headers.get("Authorization");
+  const cookie = loginRes.headers.get("set-cookie");
+
+  console.log(user.id, token, cookie);
   for (let [key, value] of loginRes.headers.entries()) {
-  console.log(`${key}: ${value}`);
-  
-}
+    console.log(`${key}: ${value}`);
+  }
 
+  // 5. Create PAT
+  const patRes = await fetch(`${MATTERMOST_BASE_URL}/users/${user.id}/tokens`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
+    },
+    body: JSON.stringify({
+      description: `Token for ${user.username}`,
+    }),
+  });
 
+  const pat = await patRes.json();
+  if (!pat.token) throw new Error("PAT creation failed");
 
-
- const patRes = await fetch(`${MATTERMOST_BASE_URL}/users/${user.id}/tokens`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${MATTERMOST_ADMIN_TOKEN}`,
-      },
-      body: JSON.stringify({
-        description: `Token for ${user.username}`,
-      }),
-    });
-
-    const pat = await patRes.json();
-    if (!pat.token) throw new Error("PAT creation failed");
-    console.log(pat.token )
+  console.log("✅ Mattermost PAT:", pat.token);
 
   return {
     mattermost_user_id: user.id,
