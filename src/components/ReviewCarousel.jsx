@@ -2,6 +2,12 @@ import React from "react";
 import { Star } from "lucide-react";
 import { motion } from "framer-motion";
 import liam from "../assets/Avatars/Liam-Parker.webp"
+import maya from "../assets/Avatars/Maya Singh.webp"
+import carlos from "../assets/Avatars/Carlos Ortega.webp"
+import sophie from "../assets/Avatars/Sophie Bennett.webp"
+import adeel from "../assets/Avatars/Adeel Farooq.webp"
+import naomi from "../assets/Avatars/Naomi Tanaka.webp"
+import jason from "../assets/Avatars/Jason Miller.webp"
 
 const reviews =[
   {
@@ -11,32 +17,32 @@ const reviews =[
   },
   {
     name: "Maya Singh",
-    image: "../../public/Avatars/Maya Singh.webp",
+    image: maya,
     message: "Their lending and borrowing walkthroughs saved me from costly mistakes. The platform explained risks in simple terms. Great for cautious investors like me."
   },
   {
     name: "Carlos Ortega",
-    image: "../../public/Avatars/Carlos Ortega.webp",
+    image: carlos,
     message: "I’ve tried YouTube and blogs but nothing came close to this. DeFiStrategies gave me structured learning, real examples, and easy-to-follow steps. A gem!"
   },
   {
     name: "Sophie Bennett",
-    image: "../../public/Avatars/Sophie Bennett.webp",
+    image: sophie,
     message: "The DeFi tools recommended here are top-notch. From gas trackers to portfolio dashboards — everything’s covered. A complete toolkit for DeFi users!"
   },
   {
     name: "Adeel Farooq",
-    image: "../../public/Avatars/Adeel Farooq.webp",
+    image: adeel,
     message: "I finally learned how to use LPs properly without losing money to impermanent loss. Their visual guides are next level. Highly recommended!"
   },
   {
     name: "Naomi Tanaka",
-    image: "../../public/Avatars/Naomi Tanaka.webp",
+    image: naomi,
     message: "The 1-on-1 coaching helped me build a DeFi income strategy tailored to my risk level. I felt supported every step of the way. Totally worth it."
   },
   {
     name: "Jason Miller",
-    image: "../../public/Avatars/Jason Miller.webp",
+    image: jason,
     message: "Before this, DeFi felt like a gamble. Now I understand how the protocols work and how to manage risk. Clear, concise, and actually useful."
   }
 ];
@@ -87,10 +93,11 @@ const ReviewCarousel = () => {
     <section className="py-14 px-4 bg-background text-white">
       <div className="max-w-6xl mx-auto text-center mb-10 px-2">
         <h2 className="text-3xl md:text-4xl font-bold">
-          What Our <span className="text-gradient">Users Say</span>
+          
+          Trusted by <span className="text-gradient">DeFi Explorers</span> Like You
         </h2>
         <p className="text-muted-foreground mt-2 text-sm md:text-base">
-          Real reviews from DeFi enthusiasts and beginners alike.
+         From beginners to seasoned users, hear how DeFiStrategies helped them unlock better yields and smarter decisions.
         </p>
       </div>
 

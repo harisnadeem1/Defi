@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Zap, Shield, BarChart, Users, Puzzle, Sparkles, Lock, Layers, TrendingUp } from 'lucide-react';
 import FAQSection from "@/components/FAQSection";
 import ReviewCarousel from "@/components/ReviewCarousel";
+import TeamSection from "@/components/TeamProfilesSection";
+
 
 const fadeInUp = {
   initial: { opacity: 0, y: 60 },
@@ -216,8 +218,15 @@ const LandingPage = () => {
       </section>
 
 
+
+      <ReviewCarousel />
+
+
+
+
+
       {/* Placeholder for Social Proof/Testimonials */}
-      <section className="py-16 md:py-24 bg-secondary/50">
+      {/* <section className="py-16 md:py-24 bg-secondary/50">
         <div className="container mx-auto px-4">
           <motion.div variants={fadeInUp} initial="initial" whileInView="animate" viewport={{ once: true }}>
             <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
@@ -252,7 +261,7 @@ const LandingPage = () => {
             ))}
           </motion.div>
         </div>
-      </section>
+      </section> */}
 
       {/* Final CTA Section */}
       <section className="py-20 md:py-32 text-center bg-gradient-to-b from-background to-blue-900/10">
@@ -277,7 +286,12 @@ const LandingPage = () => {
       <FAQSection />
 
 
-      <ReviewCarousel />
+      {/* <ReviewCarousel /> */}
+
+      <TeamSection/>
+
+
+
     </div>
   );
 };
