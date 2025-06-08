@@ -1,4 +1,12 @@
-import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import React, { 
+  useEffect, 
+  useRef, 
+  useState, 
+  useCallback, 
+  useMemo,
+  memo,
+  startTransition
+} from "react";
 import { mmGet, mmPost } from "../api/mattermostClient";
 import { supabase } from "@/lib/supabaseClient";
 import Picker from "@emoji-mart/react";
@@ -18,6 +26,115 @@ const DEFAULT_CHANNELS = [
   { name: "lounge", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_LOUNGE },
 ];
 
+// Utility function for debouncing
+function debounce(func, wait) {
+  let timeout;
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+  };
+}
+
+// Memoized Message Component for better rendering performance
+const MessageItem = memo(({ 
+  post, 
+  showPickerFor, 
+  setShowPickerFor, 
+  setReplyToPostId, 
+  handleReact 
+}) => (
+  <div
+    className={`relative px-4 py-3 rounded-md break-words w-full sm:max-w-xl ${
+      post.isOwnMessage
+        ? "bg-[#5865f2]/30 ml-auto"
+        : "bg-[#2f3136]"
+    } ${post.pending ? 'opacity-70' : ''}`}
+  >
+    <div className="flex flex-wrap items-center gap-2 mb-1">
+      <img
+        src={`https://ui-avatars.com/api/?name=${post.username}`}
+        alt="avatar"
+        className="w-8 h-8 rounded-full"
+        loading="lazy"
+      />
+      <span className="font-semibold text-white">{post.username}</span>
+      <span className="text-xs text-gray-400 ml-2 truncate">
+        {post.formattedTime}
+      </span>
+    </div>
+
+    <p className="text-white whitespace-pre-wrap">{post.message}</p>
+
+    {/* Reactions */}
+    {Object.keys(post.reactions || {}).length > 0 && (
+      <div className="mt-2 flex gap-2 flex-wrap">
+        {Object.entries(post.reactions).map(([emojiName, count]) => {
+          const emojiChar = emoji.getUnicode(emojiName);
+          if (!emojiChar) return null;
+          return (
+            <span
+              key={emojiName}
+              className="text-sm px-2 py-1 bg-[#4f545c] rounded-full hover:bg-[#5a5e66] cursor-pointer"
+              onClick={() => handleReact(post.id, emojiName)}
+            >
+              {emojiChar} {count}
+            </span>
+          );
+        })}
+      </div>
+    )}
+
+    {!post.pending && (
+      <div className="text-xs flex justify-end gap-2 text-gray-400 mt-1">
+        <button onClick={() => setReplyToPostId(post.id)} title="Reply">
+          <MessageCircle size={16} />
+        </button>
+        <button
+          onClick={() =>
+            setShowPickerFor((prev) => (prev === post.id ? null : post.id))
+          }
+          title="React"
+        >
+          <SmilePlus size={16} />
+        </button>
+      </div>
+    )}
+
+    {showPickerFor === post.id && (
+      <div className="mt-3 z-50">
+        <Picker
+          data={data}
+          onEmojiSelect={(emoji) => {
+            handleReact(post.id, emoji.id);
+            setShowPickerFor(null);
+          }}
+          theme="dark"
+        />
+      </div>
+    )}
+
+    {post.replies?.map((reply) => (
+      <div key={reply.id} className="mt-3 ml-4 p-2 rounded bg-[#2c2f33]">
+        <div className="text-xs font-semibold text-[#f2f3f5]">↳ {reply.username}</div>
+        <div className="text-sm text-white">{reply.message}</div>
+      </div>
+    ))}
+  </div>
+), (prevProps, nextProps) => {
+  // Custom comparison for better memoization
+  return (
+    prevProps.post.id === nextProps.post.id &&
+    prevProps.post.message === nextProps.post.message &&
+    JSON.stringify(prevProps.post.reactions) === JSON.stringify(nextProps.post.reactions) &&
+    prevProps.showPickerFor === nextProps.showPickerFor &&
+    prevProps.post.replies?.length === nextProps.post.replies?.length
+  );
+});
+
 function ChatPage() {
   const [posts, setPosts] = useState([]);
   const [message, setMessage] = useState("");
@@ -29,22 +146,42 @@ function ChatPage() {
   const [showChannelMenu, setShowChannelMenu] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [lastPostTime, setLastPostTime] = useState(0);
+  const [channelSwitching, setChannelSwitching] = useState(false);
   
   const navigate = useNavigate();
   const messagesWrapperRef = useRef(null);
   const visitedChannelsRef = useRef(new Set());
   const userCacheRef = useRef(new Map());
-  const intervalRef = useRef(null);
   const reactionCacheRef = useRef(new Map());
+  const intervalRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
-  // Memoize formatted time to avoid recalculation
-  const formatTime = useCallback((timestamp) => {
-    return new Date(timestamp).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }, []);
+  // Optimized time formatting with caching
+  const formatTime = useCallback((() => {
+    const cache = new Map();
+    const maxCacheSize = 1000;
+    
+    return (timestamp) => {
+      if (cache.has(timestamp)) {
+        return cache.get(timestamp);
+      }
+      
+      const formatted = new Date(timestamp).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      
+      if (cache.size >= maxCacheSize) {
+        const firstKey = cache.keys().next().value;
+        cache.delete(firstKey);
+      }
+      
+      cache.set(timestamp, formatted);
+      return formatted;
+    };
+  })(), []);
 
   // Debounced scroll to bottom
   const scrollToBottom = useCallback(() => {
@@ -53,7 +190,7 @@ function ChatPage() {
     }
   }, []);
 
-  // Optimized user fetching with caching
+  // Enhanced user fetching with caching
   const fetchUsers = useCallback(async (userIds, token) => {
     const uncachedUserIds = userIds.filter(id => !userCacheRef.current.has(id));
     
@@ -66,12 +203,10 @@ function ChatPage() {
     try {
       const userBulkRes = await mmPost("/users/ids", uncachedUserIds, token);
       
-      // Cache the new users
       userBulkRes.forEach(user => {
         userCacheRef.current.set(user.id, user.username);
       });
 
-      // Return all requested users
       return Object.fromEntries(
         userIds.map(id => [id, userCacheRef.current.get(id) || "Unknown"])
       );
@@ -81,11 +216,12 @@ function ChatPage() {
     }
   }, []);
 
-  // Optimized reaction fetching with caching
+  // Fixed reaction fetching function
   const fetchReactions = useCallback(async (postIds, token) => {
+    if (!postIds || postIds.length === 0) return {};
+
     const reactionPromises = postIds.map(async (postId) => {
-      // Check cache first
-      const cacheKey = `${postId}_${Date.now() - (Date.now() % 30000)}`; // 30 second cache
+      const cacheKey = `${postId}_${Math.floor(Date.now() / 30000)}`; // 30 second cache
       if (reactionCacheRef.current.has(cacheKey)) {
         return [postId, reactionCacheRef.current.get(cacheKey)];
       }
@@ -97,40 +233,61 @@ function ChatPage() {
           groupedReactions[reaction.emoji_name] = (groupedReactions[reaction.emoji_name] || 0) + 1;
         });
         
-        // Cache the result
         reactionCacheRef.current.set(cacheKey, groupedReactions);
         return [postId, groupedReactions];
-      } catch {
+      } catch (err) {
+        console.error(`Failed to fetch reactions for post ${postId}:`, err);
         const emptyReactions = {};
         reactionCacheRef.current.set(cacheKey, emptyReactions);
         return [postId, emptyReactions];
       }
     });
 
-    const results = await Promise.all(reactionPromises);
-    return Object.fromEntries(results);
+    try {
+      const results = await Promise.allSettled(reactionPromises);
+      return Object.fromEntries(
+        results
+          .filter(result => result.status === 'fulfilled')
+          .map(result => result.value)
+      );
+    } catch (err) {
+      console.error("Error in fetchReactions:", err);
+      return {};
+    }
   }, []);
 
-  // Optimized message fetching
-  const fetchMessages = useCallback(async () => {
-    if (!mmToken || !selectedChannel?.id || loading) return;
+  // Enhanced message fetching
+  const fetchMessages = useCallback(async (isChannelSwitch = false) => {
+    if (!mmToken || !selectedChannel?.id) return;
     
-    setLoading(true);
+    // Don't show loading for regular polling updates
+    if (isChannelSwitch) {
+      setLoading(true);
+    }
+    
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    abortControllerRef.current = new AbortController();
+    
     try {
-      const data = await mmGet(`/channels/${selectedChannel.id}/posts`, mmToken);
+      const data = await mmGet(`/channels/${selectedChannel.id}/posts`, mmToken, {
+        signal: abortControllerRef.current.signal
+      });
+      
       const messages = Object.values(data.posts);
       
-      // Early return if no new messages
       if (messages.length === 0) {
-        setLoading(false);
+        if (isChannelSwitch) setLoading(false);
         return;
       }
 
       const latestPostTime = Math.max(...messages.map(msg => msg.create_at));
       
-      // Skip processing if no new messages since last fetch
-      if (latestPostTime <= lastPostTime && posts.length > 0) {
-        setLoading(false);
+      // For regular polling, skip if no new messages
+      if (!isChannelSwitch && latestPostTime <= lastPostTime && posts.length > 0) {
         return;
       }
       
@@ -167,15 +324,178 @@ function ChatPage() {
         };
       });
 
-      setPosts(messagesWithReactions.sort((a, b) => a.create_at - b.create_at));
+      const sortedMessages = messagesWithReactions.sort((a, b) => a.create_at - b.create_at);
+      
+      if (isChannelSwitch) {
+        setPosts(sortedMessages);
+      } else {
+        // For polling updates, merge new messages
+        setPosts(prevPosts => {
+          const existingIds = new Set(prevPosts.map(p => p.id));
+          const newMessages = sortedMessages.filter(msg => !existingIds.has(msg.id));
+          
+          if (newMessages.length === 0) return prevPosts;
+          
+          return [...prevPosts, ...newMessages].sort((a, b) => a.create_at - b.create_at);
+        });
+      }
+      
     } catch (err) {
-      console.error("Error fetching messages:", err);
+      if (err.name !== 'AbortError') {
+        console.error("Error fetching messages:", err);
+      }
     } finally {
-      setLoading(false);
+      if (isChannelSwitch) {
+        setLoading(false);
+        setChannelSwitching(false);
+      }
     }
-  }, [mmToken, selectedChannel, loading, lastPostTime, posts.length, fetchUsers, fetchReactions, mmUserId, formatTime]);
+  }, [mmToken, selectedChannel, lastPostTime, posts.length, fetchUsers, fetchReactions, mmUserId, formatTime]);
 
-  // Optimized credentials fetching
+  // Enhanced send handler
+  const handleSend = useCallback(async () => {
+    if (!message.trim() || !mmToken || isSending) return;
+
+    const messageContent = message;
+    const tempId = `temp_${Date.now()}_${Math.random()}`;
+    
+    setIsSending(true);
+    
+    // Optimistic update
+    const optimisticPost = {
+      id: tempId,
+      message: messageContent,
+      user_id: mmUserId,
+      username: userCacheRef.current.get(mmUserId) || "You",
+      create_at: Date.now(),
+      isOwnMessage: true,
+      reactions: {},
+      replies: [],
+      formattedTime: formatTime(Date.now()),
+      pending: true
+    };
+
+    setPosts(prev => [...prev, optimisticPost]);
+    setMessage("");
+    setReplyToPostId(null);
+    
+    // Scroll to bottom immediately
+    setTimeout(scrollToBottom, 50);
+
+    try {
+      const response = await mmPost(
+        "/posts",
+        {
+          channel_id: selectedChannel.id,
+          message: messageContent,
+          root_id: replyToPostId || null,
+        },
+        mmToken
+      );
+      
+      // Remove optimistic post and replace with real one
+      setPosts(prev => {
+        const filteredPosts = prev.filter(p => p.id !== tempId);
+        const realPost = {
+          ...response,
+          username: userCacheRef.current.get(response.user_id) || "You",
+          isOwnMessage: response.user_id === mmUserId,
+          reactions: {},
+          replies: [],
+          formattedTime: formatTime(response.create_at),
+          pending: false
+        };
+        return [...filteredPosts, realPost].sort((a, b) => a.create_at - b.create_at);
+      });
+      
+    } catch (err) {
+      console.error("Failed to send message:", err);
+      // Remove failed optimistic update and restore message
+      setPosts(prev => prev.filter(p => p.id !== tempId));
+      setMessage(messageContent);
+    } finally {
+      setIsSending(false);
+    }
+  }, [message, mmToken, mmUserId, selectedChannel.id, replyToPostId, formatTime, scrollToBottom, isSending]);
+
+  // Enhanced reaction handler
+  const handleReact = useCallback(async (postId, emojiName) => {
+    if (!mmToken || !postId || !emojiName) return;
+
+    // Optimistic update
+    setPosts(prev => prev.map(post => {
+      if (post.id !== postId) return post;
+      
+      const currentReactions = { ...post.reactions };
+      currentReactions[emojiName] = (currentReactions[emojiName] || 0) + 1;
+      
+      return { ...post, reactions: currentReactions };
+    }));
+
+    try {
+      await mmPost(
+        "/reactions",
+        {
+          user_id: mmUserId,
+          post_id: postId,
+          emoji_name: emojiName,
+        },
+        mmToken
+      );
+      
+      // Fetch updated reactions for this post
+      const reactions = await mmGet(`/posts/${postId}/reactions`, mmToken);
+      const groupedReactions = {};
+      (reactions || []).forEach((reaction) => {
+        groupedReactions[reaction.emoji_name] = (groupedReactions[reaction.emoji_name] || 0) + 1;
+      });
+
+      // Update with real reaction count
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, reactions: groupedReactions }
+          : post
+      ));
+      
+    } catch (error) {
+      console.error("Failed to react to post:", error);
+      // Revert optimistic update
+      setPosts(prev => prev.map(post => {
+        if (post.id !== postId) return post;
+        
+        const currentReactions = { ...post.reactions };
+        currentReactions[emojiName] = Math.max(0, (currentReactions[emojiName] || 1) - 1);
+        if (currentReactions[emojiName] === 0) {
+          delete currentReactions[emojiName];
+        }
+        
+        return { ...post, reactions: currentReactions };
+      }));
+    }
+  }, [mmToken, mmUserId]);
+
+  // Channel switching with proper state management
+  const handleChannelSwitch = useCallback((channel) => {
+    if (channel.id === selectedChannel.id) return;
+    
+    setChannelSwitching(true);
+    setSelectedChannel(channel);
+    setLastPostTime(0);
+    setPosts([]); // Clear posts immediately to prevent flickering
+    setShowChannelMenu(false);
+    setReplyToPostId(null);
+    setShowPickerFor(null);
+  }, [selectedChannel.id]);
+
+  // Keyboard shortcuts
+  const handleKeyPress = useCallback((e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
+
+  // Fetch credentials
   useEffect(() => {
     const fetchMattermostCredentials = async () => {
       try {
@@ -209,164 +529,54 @@ function ChatPage() {
     fetchMattermostCredentials();
   }, []);
 
-  // Optimized polling with dynamic intervals
+  // Initial fetch and polling setup
   useEffect(() => {
     if (!mmToken || !selectedChannel?.id) return;
 
-    // Initial fetch
-    fetchMessages();
+    // Initial fetch for channel switch
+    fetchMessages(true);
     
     // Clear existing interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
 
-    // Dynamic polling - faster when active, slower when idle
-    let pollInterval = 5000; // Start with 5 seconds
-    
-    const setupPolling = () => {
-      intervalRef.current = setInterval(() => {
-        fetchMessages();
-        // Gradually increase interval up to 30 seconds for less active channels
-        pollInterval = Math.min(pollInterval + 2000, 30000);
-      }, pollInterval);
-    };
-
-    setupPolling();
-
-    // Reset to fast polling on user activity
-    const resetPolling = () => {
-      pollInterval = 5000;
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        setupPolling();
-      }
-    };
-
-    // Listen for user activity
-    window.addEventListener('focus', resetPolling);
-    window.addEventListener('click', resetPolling);
-    window.addEventListener('keydown', resetPolling);
+    // Set up polling interval for regular updates
+    intervalRef.current = setInterval(() => {
+      fetchMessages(false); // Regular polling without loading indicator
+    }, 3000); // Poll every 3 seconds
 
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      window.removeEventListener('focus', resetPolling);
-      window.removeEventListener('click', resetPolling);
-      window.removeEventListener('keydown', resetPolling);
     };
   }, [mmToken, selectedChannel, fetchMessages]);
 
-  // Auto-scroll optimization
+  // Auto-scroll for new messages
   useEffect(() => {
     if (!selectedChannel?.id || posts.length === 0) return;
 
     if (!visitedChannelsRef.current.has(selectedChannel.id)) {
-      // Use setTimeout to ensure DOM is updated
       setTimeout(scrollToBottom, 100);
       visitedChannelsRef.current.add(selectedChannel.id);
+    } else {
+      // Auto scroll for new messages
+      setTimeout(scrollToBottom, 100);
     }
   }, [posts.length, selectedChannel, scrollToBottom]);
 
-  // Optimized send handler with optimistic updates
-  const handleSend = useCallback(async () => {
-    if (!message.trim() || !mmToken) return;
-
-    const messageContent = message;
-    const tempId = `temp_${Date.now()}`;
-    
-    // Optimistic update
-    const optimisticPost = {
-      id: tempId,
-      message: messageContent,
-      user_id: mmUserId,
-      username: userCacheRef.current.get(mmUserId) || "You",
-      create_at: Date.now(),
-      isOwnMessage: true,
-      reactions: {},
-      replies: [],
-      formattedTime: formatTime(Date.now()),
-      pending: true
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
     };
-
-    setPosts(prev => [...prev, optimisticPost]);
-    setMessage("");
-    setReplyToPostId(null);
-    
-    // Scroll to bottom immediately
-    setTimeout(scrollToBottom, 50);
-
-    try {
-      await mmPost(
-        "/posts",
-        {
-          channel_id: selectedChannel.id,
-          message: messageContent,
-          root_id: replyToPostId || null,
-        },
-        mmToken
-      );
-      
-      // Remove optimistic post and fetch real data
-      setPosts(prev => prev.filter(p => p.id !== tempId));
-      fetchMessages();
-    } catch (err) {
-      console.error("Failed to send message:", err);
-      // Remove failed optimistic update
-      setPosts(prev => prev.filter(p => p.id !== tempId));
-      setMessage(messageContent); // Restore message
-    }
-  }, [message, mmToken, mmUserId, selectedChannel.id, replyToPostId, formatTime, scrollToBottom, fetchMessages]);
-
-  // Optimized reaction handler
-  const handleReact = useCallback(async (postId, emojiName) => {
-    if (!mmToken || !postId || !emojiName) return;
-
-    // Clear reaction cache for this post
-    Array.from(reactionCacheRef.current.keys())
-      .filter(key => key.startsWith(postId))
-      .forEach(key => reactionCacheRef.current.delete(key));
-
-    try {
-      await mmPost(
-        "/reactions",
-        {
-          user_id: mmUserId,
-          post_id: postId,
-          emoji_name: emojiName,
-        },
-        mmToken
-      );
-      
-      // Fetch only reactions for this specific post instead of all messages
-      const reactions = await mmGet(`/posts/${postId}/reactions`, mmToken);
-      const groupedReactions = {};
-      (reactions || []).forEach((reaction) => {
-        groupedReactions[reaction.emoji_name] = (groupedReactions[reaction.emoji_name] || 0) + 1;
-      });
-
-      // Update only the specific post's reactions
-      setPosts(prev => prev.map(post => 
-        post.id === postId 
-          ? { ...post, reactions: groupedReactions }
-          : post
-      ));
-    } catch (error) {
-      console.error("Failed to react to post:", error);
-    }
-  }, [mmToken, mmUserId]);
-
-  // Memoize processed posts to avoid unnecessary re-renders
-  const memoizedPosts = useMemo(() => posts, [posts]);
-
-  // Keyboard shortcut for sending messages
-  const handleKeyPress = useCallback((e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }, [handleSend]);
+  }, []);
 
   if (isSubscribed === false) {
     return (
@@ -387,15 +597,12 @@ function ChatPage() {
         {DEFAULT_CHANNELS.map((ch) => (
           <div
             key={ch.id}
-            onClick={() => {
-              setSelectedChannel(ch);
-              setLastPostTime(0); // Reset to fetch all messages for new channel
-            }}
+            onClick={() => handleChannelSwitch(ch)}
             className={`px-3 py-2 rounded-lg cursor-pointer transition-all duration-150 ${
               selectedChannel.id === ch.id
                 ? "bg-[#404249] text-white font-medium"
                 : "text-gray-300 hover:bg-[#2b2d31] hover:text-white"
-            }`}
+            } ${channelSwitching && selectedChannel.id === ch.id ? 'opacity-50' : ''}`}
           >
             # {ch.name}
           </div>
@@ -409,8 +616,11 @@ function ChatPage() {
           <h1 className="text-lg font-semibold truncate max-w-[90%]">
             #{selectedChannel.name.replace(/-/g, " ")}
           </h1>
-          {loading && (
-            <div className="text-xs text-gray-400">Loading...</div>
+          {(loading || channelSwitching) && (
+            <div className="text-xs text-gray-400 flex items-center gap-2">
+              <div className="animate-spin w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full"></div>
+              Loading...
+            </div>
           )}
         </div>
 
@@ -419,81 +629,22 @@ function ChatPage() {
           ref={messagesWrapperRef}
           className="flex-1 overflow-y-auto px-4 py-4 space-y-6 bg-[#313338] min-h-0 w-full"
         >
-          {memoizedPosts.map((post) => (
-            <div
-              key={post.id}
-              className={`relative px-4 py-3 rounded-md break-words w-full sm:max-w-xl ${
-                post.isOwnMessage
-                  ? "bg-[#5865f2]/30 ml-auto"
-                  : "bg-[#2f3136]"
-              } ${post.pending ? 'opacity-70' : ''}`}
-            >
-              <div className="flex flex-wrap items-center gap-2 mb-1">
-                <img
-                  src={`https://ui-avatars.com/api/?name=${post.username}`}
-                  alt="avatar"
-                  className="w-8 h-8 rounded-full"
-                />
-                <span className="font-semibold text-white">{post.username}</span>
-                <span className="text-xs text-gray-400 ml-2 truncate">
-                  {post.formattedTime}
-                </span>
-              </div>
-
-              <p className="text-white whitespace-pre-wrap">{post.message}</p>
-
-              <div className="mt-2 flex gap-2 flex-wrap">
-                {Object.entries(post.reactions || {}).map(([emojiName, count]) => {
-                  const emojiChar = emoji.getUnicode(emojiName);
-                  if (!emojiChar) return null;
-                  return (
-                    <span
-                      key={emojiName}
-                      className="text-sm px-2 py-1 bg-[#4f545c] rounded-full hover:bg-[#5a5e66] cursor-pointer"
-                    >
-                      {emojiChar} {count}
-                    </span>
-                  );
-                })}
-              </div>
-
-              {!post.pending && (
-                <div className="text-xs flex justify-end gap-2 text-gray-400 mt-1">
-                  <button onClick={() => setReplyToPostId(post.id)} title="Reply">
-                    <MessageCircle size={16} />
-                  </button>
-                  <button
-                    onClick={() =>
-                      setShowPickerFor((prev) => (prev === post.id ? null : post.id))
-                    }
-                    title="React"
-                  >
-                    <SmilePlus size={16} />
-                  </button>
-                </div>
-              )}
-
-              {showPickerFor === post.id && (
-                <div className="mt-3 z-50">
-                  <Picker
-                    data={data}
-                    onEmojiSelect={(emoji) => {
-                      handleReact(post.id, emoji.id);
-                      setShowPickerFor(null);
-                    }}
-                    theme="dark"
-                  />
-                </div>
-              )}
-
-              {post.replies?.map((reply) => (
-                <div key={reply.id} className="mt-3 ml-4 p-2 rounded bg-[#2c2f33]">
-                  <div className="text-xs font-semibold text-[#f2f3f5]">↳ {reply.username}</div>
-                  <div className="text-sm text-white">{reply.message}</div>
-                </div>
-              ))}
+          {channelSwitching ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-gray-400">Loading messages...</div>
             </div>
-          ))}
+          ) : (
+            posts.map((post) => (
+              <MessageItem
+                key={post.id}
+                post={post}
+                showPickerFor={showPickerFor}
+                setShowPickerFor={setShowPickerFor}
+                setReplyToPostId={setReplyToPostId}
+                handleReact={handleReact}
+              />
+            ))
+          )}
         </div>
 
         {/* Input */}
@@ -511,11 +662,7 @@ function ChatPage() {
                 {DEFAULT_CHANNELS.map((ch) => (
                   <div
                     key={ch.id}
-                    onClick={() => {
-                      setSelectedChannel(ch);
-                      setShowChannelMenu(false);
-                      setLastPostTime(0);
-                    }}
+                    onClick={() => handleChannelSwitch(ch)}
                     className={`px-4 py-2 cursor-pointer hover:bg-[#404249] ${
                       selectedChannel.id === ch.id ? "bg-[#404249] font-semibold" : ""
                     }`}
@@ -534,13 +681,14 @@ function ChatPage() {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyPress={handleKeyPress}
+            disabled={channelSwitching}
           />
           <button
             onClick={handleSend}
-            
-            className="bg-[#5865f2] hover:bg-[#4752c4] text-white px-4 py-2 rounded-md shadow text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!message.trim() || isSending || channelSwitching}
+            className="bg-[#5865f2] hover:bg-[#4752c4] text-white px-4 py-2 rounded-md shadow text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
           >
-            Send
+            {isSending ? "Sending..." : "Send"}
           </button>
         </div>
 
