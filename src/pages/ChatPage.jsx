@@ -12,18 +12,36 @@ import { supabase } from "@/lib/supabaseClient";
 import Picker from "@emoji-mart/react";
 import data from "@emoji-mart/data";
 import emoji from "emoji-dictionary";
-import { MessageCircle, SmilePlus } from "lucide-react";
+import { 
+  MessageCircle, 
+  SmilePlus, 
+  Hash, 
+  Menu, 
+  X, 
+  Send, 
+  ArrowDown,
+  Users,
+  Settings,
+  Phone,
+  Video,
+  Pin,
+  Search,
+  Paperclip,
+  Gift,
+  Gif,
+  Sticker
+} from "lucide-react";
 import SubscriptionModal from "../components/SubscriptionChat";
 import { useNavigate } from "react-router-dom";
 
 const DEFAULT_CHANNELS = [
-  { name: "general", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID },
-  { name: "strategy-feedback", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_STRATEGY },
-  { name: "onboarding-support", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_BIGGNEER },
-  { name: "wins", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_WINS },
-  { name: "alerts", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_RISKS },
-  { name: "tools", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_TOOLS },
-  { name: "lounge", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_LOUNGE },
+  { name: "general", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID, description: "General discussion" },
+  { name: "strategy-feedback", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_STRATEGY, description: "Share your trading strategies" },
+  { name: "onboarding-support", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_BIGGNEER, description: "Help for new members" },
+  { name: "wins", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_WINS, description: "Celebrate your wins!" },
+  { name: "alerts", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_RISKS, description: "Market alerts and risks" },
+  { name: "tools", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_TOOLS, description: "Trading tools discussion" },
+  { name: "lounge", id: import.meta.env.VITE_MATTERMOST_CHANNEL_ID_LOUNGE, description: "Casual conversations" },
 ];
 
 // Utility function for debouncing
@@ -39,93 +57,155 @@ function debounce(func, wait) {
   };
 }
 
-// Memoized Message Component for better rendering performance
+// Enhanced Message Component with Discord-like styling
 const MessageItem = memo(({ 
   post, 
   showPickerFor, 
   setShowPickerFor, 
   setReplyToPostId, 
-  handleReact 
-}) => (
-  <div
-    className={`relative px-4 py-3 rounded-md break-words w-full sm:max-w-xl ${
-      post.isOwnMessage
-        ? "bg-[#5865f2]/30 ml-auto"
-        : "bg-[#2f3136]"
-    } ${post.pending ? 'opacity-70' : ''}`}
-  >
-    <div className="flex flex-wrap items-center gap-2 mb-1">
-      <img
-        src={`https://ui-avatars.com/api/?name=${post.username}`}
-        alt="avatar"
-        className="w-8 h-8 rounded-full"
-        loading="lazy"
-      />
-      <span className="font-semibold text-white">{post.username}</span>
-      <span className="text-xs text-gray-400 ml-2 truncate">
-        {post.formattedTime}
-      </span>
-    </div>
+  handleReact,
+  previousPost
+}) => {
+  const isConsecutive = previousPost && 
+    previousPost.user_id === post.user_id && 
+    (post.create_at - previousPost.create_at) < 420000; // 7 minutes
 
-    <p className="text-white whitespace-pre-wrap">{post.message}</p>
+  const getAvatarColor = (username) => {
+    const colors = [
+      '#7289da', '#43b581', '#faa61a', '#f04747', '#9266cc',
+      '#3498db', '#2ecc71', '#e91e63', '#ff9800', '#795548'
+    ];
+    let hash = 0;
+    for (let i = 0; i < username.length; i++) {
+      hash = username.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
+  };
 
-    {/* Reactions */}
-    {Object.keys(post.reactions || {}).length > 0 && (
-      <div className="mt-2 flex gap-2 flex-wrap">
-        {Object.entries(post.reactions).map(([emojiName, count]) => {
-          const emojiChar = emoji.getUnicode(emojiName);
-          if (!emojiChar) return null;
-          return (
-            <span
-              key={emojiName}
-              className="text-sm px-2 py-1 bg-[#4f545c] rounded-full hover:bg-[#5a5e66] cursor-pointer"
-              onClick={() => handleReact(post.id, emojiName)}
+  return (
+    <div className={`group relative px-4 py-1 hover:bg-[#32353b]/30 transition-colors duration-150 ${
+      isConsecutive ? 'mt-0.5' : 'mt-4'
+    }`}>
+      <div className="flex">
+        {/* Avatar */}
+        <div className="flex-shrink-0 mr-4">
+          {!isConsecutive ? (
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm"
+              style={{ backgroundColor: getAvatarColor(post.username) }}
             >
-              {emojiChar} {count}
-            </span>
-          );
-        })}
-      </div>
-    )}
+              {post.username.substring(0, 2).toUpperCase()}
+            </div>
+          ) : (
+            <div className="w-10 h-10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-xs text-[#b9bbbe]">
+                {post.formattedTime}
+              </span>
+            </div>
+          )}
+        </div>
 
-    {!post.pending && (
-      <div className="text-xs flex justify-end gap-2 text-gray-400 mt-1">
-        <button onClick={() => setReplyToPostId(post.id)} title="Reply">
-          <MessageCircle size={16} />
-        </button>
-        <button
-          onClick={() =>
-            setShowPickerFor((prev) => (prev === post.id ? null : post.id))
-          }
-          title="React"
-        >
-          <SmilePlus size={16} />
-        </button>
-      </div>
-    )}
+        {/* Message Content */}
+        <div className="flex-1 min-w-0">
+          {/* Header */}
+          {!isConsecutive && (
+            <div className="flex items-baseline mb-1">
+              <span className="font-semibold text-white hover:underline cursor-pointer mr-2">
+                {post.username}
+              </span>
+              <span className="text-xs text-[#b9bbbe]">
+                {new Date(post.create_at).toLocaleDateString()} {post.formattedTime}
+              </span>
+              {post.pending && (
+                <span className="ml-2 text-xs text-[#b9bbbe] animate-pulse">
+                  Sending...
+                </span>
+              )}
+            </div>
+          )}
 
-    {showPickerFor === post.id && (
-      <div className="mt-3 z-50">
-        <Picker
-          data={data}
-          onEmojiSelect={(emoji) => {
-            handleReact(post.id, emoji.id);
-            setShowPickerFor(null);
-          }}
-          theme="dark"
-        />
-      </div>
-    )}
+          {/* Message Text */}
+          <div className={`text-[#dcddde] leading-relaxed break-words ${
+            post.pending ? 'opacity-60' : ''
+          }`}>
+            {post.message}
+          </div>
 
-    {post.replies?.map((reply) => (
-      <div key={reply.id} className="mt-3 ml-4 p-2 rounded bg-[#2c2f33]">
-        <div className="text-xs font-semibold text-[#f2f3f5]">↳ {reply.username}</div>
-        <div className="text-sm text-white">{reply.message}</div>
+          {/* Reactions */}
+          {Object.keys(post.reactions || {}).length > 0 && (
+            <div className="mt-2 flex gap-1 flex-wrap">
+              {Object.entries(post.reactions).map(([emojiName, count]) => {
+                const emojiChar = emoji.getUnicode(emojiName);
+                if (!emojiChar) return null;
+                return (
+                  <button
+                    key={emojiName}
+                    className="inline-flex items-center gap-1 text-sm px-1.5 py-0.5 bg-[#2f3136] hover:bg-[#36393f] border border-[#40444b] rounded text-[#b9bbbe] hover:border-[#5865f2] transition-colors"
+                    onClick={() => handleReact(post.id, emojiName)}
+                  >
+                    <span>{emojiChar}</span>
+                    <span className="text-xs">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Replies */}
+          {post.replies?.map((reply) => (
+            <div key={reply.id} className="mt-3 ml-6 pl-3 border-l-2 border-[#4f545c] bg-[#2f3136]/50 rounded-r p-2">
+              <div className="flex items-center gap-2 mb-1">
+                <div 
+                  className="w-4 h-4 rounded-full flex items-center justify-center text-white text-xs"
+                  style={{ backgroundColor: getAvatarColor(reply.username) }}
+                >
+                  {reply.username.substring(0, 1).toUpperCase()}
+                </div>
+                <span className="text-sm font-medium text-white">{reply.username}</span>
+                <span className="text-xs text-[#b9bbbe]">{reply.formattedTime}</span>
+              </div>
+              <div className="text-sm text-[#dcddde]">{reply.message}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Message Actions (visible on hover) */}
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-150 absolute top-1 right-4 bg-[#2f3136] border border-[#40444b] rounded shadow-lg flex">
+          <button
+            onClick={() => setReplyToPostId(post.id)}
+            className="p-1.5 hover:bg-[#36393f] text-[#b9bbbe] hover:text-white transition-colors"
+            title="Reply"
+          >
+            <MessageCircle size={16} />
+          </button>
+          <button
+            onClick={() => setShowPickerFor(prev => prev === post.id ? null : post.id)}
+            className="p-1.5 hover:bg-[#36393f] text-[#b9bbbe] hover:text-white transition-colors"
+            title="Add Reaction"
+          >
+            <SmilePlus size={16} />
+          </button>
+        </div>
+
+        {/* Emoji Picker */}
+        {showPickerFor === post.id && (
+          <div className="absolute top-8 right-4 z-50">
+            <Picker
+              data={data}
+              onEmojiSelect={(emoji) => {
+                handleReact(post.id, emoji.id);
+                setShowPickerFor(null);
+              }}
+              theme="dark"
+              previewPosition="none"
+              skinTonePosition="none"
+            />
+          </div>
+        )}
       </div>
-    ))}
-  </div>
-), (prevProps, nextProps) => {
-  // Custom comparison for better memoization
+    </div>
+  );
+}, (prevProps, nextProps) => {
   return (
     prevProps.post.id === nextProps.post.id &&
     prevProps.post.message === nextProps.post.message &&
@@ -143,12 +223,13 @@ function ChatPage() {
   const [showPickerFor, setShowPickerFor] = useState(null);
   const [replyToPostId, setReplyToPostId] = useState(null);
   const [selectedChannel, setSelectedChannel] = useState(DEFAULT_CHANNELS[0]);
-  const [showChannelMenu, setShowChannelMenu] = useState(false);
+  const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [lastPostTime, setLastPostTime] = useState(0);
   const [channelSwitching, setChannelSwitching] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   
   const navigate = useNavigate();
   const messagesWrapperRef = useRef(null);
@@ -183,10 +264,21 @@ function ChatPage() {
     };
   })(), []);
 
-  // Debounced scroll to bottom
+  // Enhanced scroll handling
+  const handleScroll = useCallback(() => {
+    if (messagesWrapperRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = messagesWrapperRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollButton(!isNearBottom);
+    }
+  }, []);
+
   const scrollToBottom = useCallback(() => {
     if (messagesWrapperRef.current) {
-      messagesWrapperRef.current.scrollTop = messagesWrapperRef.current.scrollHeight;
+      messagesWrapperRef.current.scrollTo({
+        top: messagesWrapperRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
   }, []);
 
@@ -221,7 +313,7 @@ function ChatPage() {
     if (!postIds || postIds.length === 0) return {};
 
     const reactionPromises = postIds.map(async (postId) => {
-      const cacheKey = `${postId}_${Math.floor(Date.now() / 30000)}`; // 30 second cache
+      const cacheKey = `${postId}_${Math.floor(Date.now() / 30000)}`;
       if (reactionCacheRef.current.has(cacheKey)) {
         return [postId, reactionCacheRef.current.get(cacheKey)];
       }
@@ -260,12 +352,10 @@ function ChatPage() {
   const fetchMessages = useCallback(async (isChannelSwitch = false) => {
     if (!mmToken || !selectedChannel?.id) return;
     
-    // Don't show loading for regular polling updates
     if (isChannelSwitch) {
       setLoading(true);
     }
     
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -286,7 +376,6 @@ function ChatPage() {
 
       const latestPostTime = Math.max(...messages.map(msg => msg.create_at));
       
-      // For regular polling, skip if no new messages
       if (!isChannelSwitch && latestPostTime <= lastPostTime && posts.length > 0) {
         return;
       }
@@ -297,13 +386,11 @@ function ChatPage() {
       const replies = messages.filter((msg) => msg.root_id);
       const userIds = [...new Set(messages.map((msg) => msg.user_id))];
 
-      // Batch fetch users and reactions
       const [userMap, reactionsMap] = await Promise.all([
         fetchUsers(userIds, mmToken),
         fetchReactions(rootPosts.map(p => p.id), mmToken)
       ]);
 
-      // Process messages efficiently
       const messagesWithReactions = rootPosts.map((msg) => {
         const msgReplies = replies
           .filter((reply) => reply.root_id === msg.id)
@@ -329,7 +416,6 @@ function ChatPage() {
       if (isChannelSwitch) {
         setPosts(sortedMessages);
       } else {
-        // For polling updates, merge new messages
         setPosts(prevPosts => {
           const existingIds = new Set(prevPosts.map(p => p.id));
           const newMessages = sortedMessages.filter(msg => !existingIds.has(msg.id));
@@ -361,7 +447,6 @@ function ChatPage() {
     
     setIsSending(true);
     
-    // Optimistic update
     const optimisticPost = {
       id: tempId,
       message: messageContent,
@@ -379,7 +464,6 @@ function ChatPage() {
     setMessage("");
     setReplyToPostId(null);
     
-    // Scroll to bottom immediately
     setTimeout(scrollToBottom, 50);
 
     try {
@@ -393,7 +477,6 @@ function ChatPage() {
         mmToken
       );
       
-      // Remove optimistic post and replace with real one
       setPosts(prev => {
         const filteredPosts = prev.filter(p => p.id !== tempId);
         const realPost = {
@@ -410,7 +493,6 @@ function ChatPage() {
       
     } catch (err) {
       console.error("Failed to send message:", err);
-      // Remove failed optimistic update and restore message
       setPosts(prev => prev.filter(p => p.id !== tempId));
       setMessage(messageContent);
     } finally {
@@ -422,7 +504,6 @@ function ChatPage() {
   const handleReact = useCallback(async (postId, emojiName) => {
     if (!mmToken || !postId || !emojiName) return;
 
-    // Optimistic update
     setPosts(prev => prev.map(post => {
       if (post.id !== postId) return post;
       
@@ -443,14 +524,12 @@ function ChatPage() {
         mmToken
       );
       
-      // Fetch updated reactions for this post
       const reactions = await mmGet(`/posts/${postId}/reactions`, mmToken);
       const groupedReactions = {};
       (reactions || []).forEach((reaction) => {
         groupedReactions[reaction.emoji_name] = (groupedReactions[reaction.emoji_name] || 0) + 1;
       });
 
-      // Update with real reaction count
       setPosts(prev => prev.map(post => 
         post.id === postId 
           ? { ...post, reactions: groupedReactions }
@@ -459,7 +538,6 @@ function ChatPage() {
       
     } catch (error) {
       console.error("Failed to react to post:", error);
-      // Revert optimistic update
       setPosts(prev => prev.map(post => {
         if (post.id !== postId) return post;
         
@@ -474,15 +552,15 @@ function ChatPage() {
     }
   }, [mmToken, mmUserId]);
 
-  // Channel switching with proper state management
+  // Channel switching
   const handleChannelSwitch = useCallback((channel) => {
     if (channel.id === selectedChannel.id) return;
     
     setChannelSwitching(true);
     setSelectedChannel(channel);
     setLastPostTime(0);
-    setPosts([]); // Clear posts immediately to prevent flickering
-    setShowChannelMenu(false);
+    setPosts([]);
+    setShowMobileSidebar(false);
     setReplyToPostId(null);
     setShowPickerFor(null);
   }, [selectedChannel.id]);
@@ -533,18 +611,15 @@ function ChatPage() {
   useEffect(() => {
     if (!mmToken || !selectedChannel?.id) return;
 
-    // Initial fetch for channel switch
     fetchMessages(true);
     
-    // Clear existing interval
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
     }
 
-    // Set up polling interval for regular updates
     intervalRef.current = setInterval(() => {
-      fetchMessages(false); // Regular polling without loading indicator
-    }, 3000); // Poll every 3 seconds
+      fetchMessages(false);
+    }, 3000);
 
     return () => {
       if (intervalRef.current) {
@@ -552,6 +627,15 @@ function ChatPage() {
       }
     };
   }, [mmToken, selectedChannel, fetchMessages]);
+
+  // Auto-scroll setup
+  useEffect(() => {
+    const messagesContainer = messagesWrapperRef.current;
+    if (messagesContainer) {
+      messagesContainer.addEventListener('scroll', handleScroll);
+      return () => messagesContainer.removeEventListener('scroll', handleScroll);
+    }
+  }, [handleScroll]);
 
   // Auto-scroll for new messages
   useEffect(() => {
@@ -561,12 +645,11 @@ function ChatPage() {
       setTimeout(scrollToBottom, 100);
       visitedChannelsRef.current.add(selectedChannel.id);
     } else {
-      // Auto scroll for new messages
       setTimeout(scrollToBottom, 100);
     }
   }, [posts.length, selectedChannel, scrollToBottom]);
 
-  // Cleanup on unmount
+  // Cleanup
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -590,115 +673,254 @@ function ChatPage() {
   }
 
   return (
-    <div className="h-screen flex font-sans text-sm text-white bg-[#313338] overflow-x-hidden">
+    <div className="h-screen flex bg-[#36393f] text-white overflow-hidden">
+      {/* Mobile Sidebar Overlay */}
+      {showMobileSidebar && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setShowMobileSidebar(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <div className="w-60 bg-[#1e1f22] p-4 flex-col gap-2 hidden sm:flex">
-        <h2 className="text-xs uppercase tracking-wide text-gray-400 mb-3">Text Channels</h2>
-        {DEFAULT_CHANNELS.map((ch) => (
-          <div
-            key={ch.id}
-            onClick={() => handleChannelSwitch(ch)}
-            className={`px-3 py-2 rounded-lg cursor-pointer transition-all duration-150 ${
-              selectedChannel.id === ch.id
-                ? "bg-[#404249] text-white font-medium"
-                : "text-gray-300 hover:bg-[#2b2d31] hover:text-white"
-            } ${channelSwitching && selectedChannel.id === ch.id ? 'opacity-50' : ''}`}
+      <div className={`
+        fixed lg:static inset-y-0 left-0 z-50 w-60 bg-[#2f3136] flex flex-col
+        transform transition-transform duration-300 ease-in-out lg:transform-none
+        ${showMobileSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        {/* Server Header */}
+        <div className="h-12 flex items-center justify-between px-4 border-b border-[#202225] bg-[#2f3136] shadow-sm">
+          <h1 className="font-semibold text-white truncate">DeFi Community</h1>
+          <button
+            onClick={() => setShowMobileSidebar(false)}
+            className="lg:hidden p-1 hover:bg-[#36393f] rounded"
           >
-            # {ch.name}
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Channels List */}
+        <div className="flex-1 overflow-y-auto p-2">
+          <div className="mb-4">
+            <div className="flex items-center justify-between px-2 py-1 text-xs font-semibold text-[#8e9297] uppercase tracking-wide">
+              <span>Text Channels</span>
+            </div>
+            <div className="space-y-0.5">
+              {DEFAULT_CHANNELS.map((channel) => (
+                <button
+                  key={channel.id}
+                  onClick={() => handleChannelSwitch(channel)}
+                  className={`
+                    group flex items-center w-full px-2 py-1.5 rounded text-left transition-colors
+                    ${selectedChannel.id === channel.id
+                      ? 'bg-[#5865f2]/20 text-white'
+                      : 'text-[#96989d] hover:bg-[#36393f] hover:text-[#dcddde]'
+                    }
+                    ${channelSwitching && selectedChannel.id === channel.id ? 'opacity-50' : ''}
+                  `}
+                  disabled={channelSwitching}
+                >
+                  <Hash size={16} className="mr-1.5 flex-shrink-0" />
+                  <span className="truncate text-sm font-medium">{channel.name}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        ))}
+        </div>
+
+        {/* User Area */}
+        <div className="p-2 bg-[#292b2f] border-t border-[#202225]">
+          <div className="flex items-center p-2 rounded hover:bg-[#36393f] transition-colors">
+            <div className="w-8 h-8 rounded-full bg-[#5865f2] flex items-center justify-center text-white text-sm font-semibold mr-2">
+              U
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-white truncate">User</div>
+              <div className="text-xs text-[#b9bbbe]">Online</div>
+            </div>
+            <div className="flex space-x-1">
+              <button className="p-1 hover:bg-[#4f545c] rounded">
+                <Settings size={16} className="text-[#b9bbbe]" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col h-screen w-full">
-        {/* Header */}
-        <div className="h-14 sticky top-0 z-10 flex items-center px-4 border-b border-[#202225] bg-[#2b2d31] shadow-sm justify-between w-full">
-          <h1 className="text-lg font-semibold truncate max-w-[90%]">
-            #{selectedChannel.name.replace(/-/g, " ")}
-          </h1>
-          {(loading || channelSwitching) && (
-            <div className="text-xs text-gray-400 flex items-center gap-2">
-              <div className="animate-spin w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full"></div>
-              Loading...
-            </div>
-          )}
-        </div>
-
-        {/* Messages */}
-        <div
-          ref={messagesWrapperRef}
-          className="flex-1 overflow-y-auto px-4 py-4 space-y-6 bg-[#313338] min-h-0 w-full"
-        >
-          {channelSwitching ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-gray-400">Loading messages...</div>
-            </div>
-          ) : (
-            posts.map((post) => (
-              <MessageItem
-                key={post.id}
-                post={post}
-                showPickerFor={showPickerFor}
-                setShowPickerFor={setShowPickerFor}
-                setReplyToPostId={setReplyToPostId}
-                handleReact={handleReact}
-              />
-            ))
-          )}
-        </div>
-
-        {/* Input */}
-        <div className="px-4 py-3 flex gap-2 bg-[#2b2d31] border-t border-[#202225] w-full">
-          {/* Channel switch on mobile */}
-          <div className="relative sm:hidden">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Channel Header */}
+        <div className="h-12 flex items-center justify-between px-4 border-b border-[#202225] bg-[#36393f] shadow-sm">
+          <div className="flex items-center">
             <button
-              onClick={() => setShowChannelMenu((prev) => !prev)}
-              className="bg-[#40444b] text-white px-3 py-2 rounded-md mr-2"
+              onClick={() => setShowMobileSidebar(true)}
+              className="lg:hidden p-2 hover:bg-[#40444b] rounded mr-2"
             >
-              #
+              <Menu size={20} />
             </button>
-            {showChannelMenu && (
-              <div className="absolute bottom-12 left-0 z-50 bg-[#2b2d31] border border-[#202225] rounded shadow-md w-48 max-h-60 overflow-y-auto">
-                {DEFAULT_CHANNELS.map((ch) => (
-                  <div
-                    key={ch.id}
-                    onClick={() => handleChannelSwitch(ch)}
-                    className={`px-4 py-2 cursor-pointer hover:bg-[#404249] ${
-                      selectedChannel.id === ch.id ? "bg-[#404249] font-semibold" : ""
-                    }`}
-                  >
-                    # {ch.name}
-                  </div>
+            <Hash size={20} className="text-[#8e9297] mr-2" />
+            <h2 className="font-semibold text-white">{selectedChannel.name}</h2>
+            {selectedChannel.description && (
+              <>
+                <div className="w-px h-6 bg-[#4f545c] mx-2" />
+                <span className="text-sm text-[#b9bbbe] truncate max-w-xs">
+                  {selectedChannel.description}
+                </span>
+              </>
+            )}
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {(loading || channelSwitching) && (
+              <div className="flex items-center text-xs text-[#b9bbbe]">
+                <div className="animate-spin w-4 h-4 border-2 border-[#b9bbbe] border-t-transparent rounded-full mr-2" />
+                Loading...
+              </div>
+            )}
+            <button className="hidden sm:block p-2 hover:bg-[#40444b] rounded text-[#b9bbbe]">
+              <Search size={20} />
+            </button>
+            <button className="hidden sm:block p-2 hover:bg-[#40444b] rounded text-[#b9bbbe]">
+              <Users size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Messages Container */}
+        <div className="flex-1 flex flex-col min-h-0">
+          {/* Messages */}
+          <div
+            ref={messagesWrapperRef}
+            className="flex-1 overflow-y-auto scrollbar-thin scrollbar-track-[#2f3136] scrollbar-thumb-[#202225]"
+            style={{ scrollbarWidth: 'thin' }}
+          >
+            {channelSwitching ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center">
+                  <div className="animate-spin w-8 h-8 border-4 border-[#5865f2] border-t-transparent rounded-full mx-auto mb-4" />
+                  <div className="text-[#b9bbbe]">Loading messages...</div>
+                </div>
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center text-[#b9bbbe]">
+                  <Hash size={48} className="mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-semibold mb-2">Welcome to #{selectedChannel.name}!</h3>
+                  <p className="text-sm">{selectedChannel.description || "This is the beginning of your conversation."}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="pb-4">
+                {posts.map((post, index) => (
+                  <MessageItem
+                    key={post.id}
+                    post={post}
+                    previousPost={posts[index - 1]}
+                    showPickerFor={showPickerFor}
+                    setShowPickerFor={setShowPickerFor}
+                    setReplyToPostId={setReplyToPostId}
+                    handleReact={handleReact}
+                  />
                 ))}
               </div>
             )}
           </div>
 
-          {/* Chat Input */}
-          <input
-            className="flex-1 rounded-md bg-[#40444b] px-2 py-2 text-white placeholder:text-gray-400 focus:outline-none text-sm"
-            placeholder={replyToPostId ? "Replying..." : "Message #" + selectedChannel.name}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={channelSwitching}
-          />
-          <button
-            onClick={handleSend}
-            disabled={!message.trim() || isSending || channelSwitching}
-            className="bg-[#5865f2] hover:bg-[#4752c4] text-white px-4 py-2 rounded-md shadow text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150"
-          >
-            {isSending ? "Sending..." : "Send"}
-          </button>
-        </div>
+          {/* Message Input */}
+          <div className="p-4">
+            {replyToPostId && (
+              <div className="mb-2 p-2 bg-[#2f3136] rounded-t border-l-4 border-[#5865f2] text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#b9bbbe]">
+                    Replying to <span className="font-medium text-white">message</span>
+                  </span>
+                  <button
+                    onClick={() => setReplyToPostId(null)}
+                    className="text-[#b9bbbe] hover:text-white"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-end space-x-2">
+              <div className="flex-1 relative">
+                <div className="flex items-center bg-[#40444b] rounded-lg">
+                  <button className="p-3 hover:bg-[#36393f] rounded-l-lg transition-colors">
+                    <Paperclip size={20} className="text-[#b9bbbe]" />
+                  </button>
+                  
+                  <input
+                    type="text"
+                    placeholder={`Message #${selectedChannel.name}`}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={channelSwitching || isSending}
+                    className="flex-1 bg-transparent px-3 py-3 text-white placeholder-[#72767d] focus:outline-none"
+                  />
+                  
+                  <div className="flex items-center pr-2">
+                    <button className="p-1.5 hover:bg-[#36393f] rounded transition-colors">
+                      <Gift size={18} className="text-[#b9bbbe]" />
+                    </button>
+                    <button className="p-1.5 hover:bg-[#36393f] rounded transition-colors">
+                      <Gif size={18} className="text-[#b9bbbe]" />
+                    </button>
+                    <button className="p-1.5 hover:bg-[#36393f] rounded transition-colors">
+                      <Sticker size={18} className="text-[#b9bbbe]" />
+                    </button>
+                    <button 
+                      className="p-1.5 hover:bg-[#36393f] rounded transition-colors"
+                      onClick={() => setShowPickerFor(showPickerFor ? null : 'input')}
+                    >
+                      <SmilePlus size={18} className="text-[#b9bbbe]" />
+                    </button>
+                  </div>
+                </div>
 
+                {showPickerFor === 'input' && (
+                  <div className="absolute bottom-full right-0 mb-2 z-50">
+                    <Picker
+                      data={data}
+                      onEmojiSelect={(emoji) => {
+                        setMessage(prev => prev + emoji.native);
+                        setShowPickerFor(null);
+                      }}
+                      theme="dark"
+                      previewPosition="none"
+                      skinTonePosition="none"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <button
+                onClick={handleSend}
+                disabled={!message.trim() || isSending || channelSwitching}
+                className="bg-[#5865f2] hover:bg-[#4752c4] disabled:bg-[#4f545c] disabled:cursor-not-allowed p-3 rounded-lg transition-colors"
+              >
+                {isSending ? (
+                  <div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
+                ) : (
+                  <Send size={20} className="text-white" />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Scroll to Bottom Button */}
+      {showScrollButton && (
         <button
           onClick={scrollToBottom}
-          className="fixed bottom-16 right-1 sm:right-4 z-50 bg-[#5865f2] text-white px-3 py-2 rounded-full hover:bg-[#4752c4] shadow-lg"
+          className="fixed bottom-24 right-4 z-30 bg-[#5865f2] hover:bg-[#4752c4] text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105"
         >
-          ↓
+          <ArrowDown size={20} />
         </button>
-      </div>
+      )}
     </div>
   );
 }

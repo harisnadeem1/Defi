@@ -47,15 +47,29 @@ const StrategyCard = ({ strategy, isSubscribed, onUnlock }) => {
   const { toast } = useToast();
   const [currentUser, setCurrentUser] = useState(null);
 
-  const effectivelyUnlocked = isSubscribed || strategy.is_sample;
+  const effectivelyUnlocked = (currentUser?.is_subscribed ?? isSubscribed) || strategy.is_sample;
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setCurrentUser(user);
-    };
-    fetchUser();
-  }, []);
+
+
+useEffect(() => {
+  const fetchUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_subscribed")
+      .eq("id", user.id)
+      .single();
+
+    if (profile) {
+      setCurrentUser({ ...user, is_subscribed: profile.is_subscribed });
+    } else {
+      setCurrentUser({ ...user, is_subscribed: false });
+    }
+  };
+  fetchUser();
+}, []);
 
   const handleViewStrategy = () => {
     if (effectivelyUnlocked) {

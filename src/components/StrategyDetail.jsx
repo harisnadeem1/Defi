@@ -74,7 +74,8 @@ const StrategyDetail = () => {
     updateUserSubscriptionStatus();
   }, [fetchStrategyFromDB, updateUserSubscriptionStatus]);
 
-  const isUserSubscribed = currentUser ? !!currentUser.isSubscribed : false;
+ const isUserSubscribed = currentUser ? !!currentUser.is_subscribed : false;
+
   const effectivelyUnlocked = strategy && (isUserSubscribed || strategy.is_sample);
 
   const handleUnlockRequest = () => {
